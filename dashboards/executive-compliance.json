@@ -1,0 +1,155 @@
+{
+  // Executive Compliance Dashboard for Business Value
+  // This dashboard is designed for executive stakeholders to monitor compliance posture, risk, and audit readiness across the organization.
+  "dashboard": {
+    "id": null,
+    "title": "Executive Compliance Overview",
+    "tags": ["compliance", "executive", "business"],
+    "timezone": "browser",
+    "schemaVersion": 36,
+    "version": 1,
+    "refresh": "5m",
+    "panels": [
+      {
+        // Panel 1: Compliance Score by Department
+        // Shows overall compliance health for each business unit
+        "type": "bargauge",
+        "title": "Compliance Score by Department",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "refId": "A",
+            "expr": "compliance_score{department=~\"Finance|Pharma|IT\"}",
+            "format": "time_series"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 100,
+            "unit": "percent"
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "showUnfilled": false
+        }
+      },
+      {
+        // Panel 2: Risk Assessment Visualization
+        // Visualizes current risk level and trends for executive risk management
+        "type": "gauge",
+        "title": "Risk Assessment (Organization-wide)",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 8},
+        "targets": [
+          {
+            "refId": "B",
+            "expr": "risk_score_overall",
+            "format": "time_series"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 10,
+            "unit": "short"
+          }
+        },
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        // Panel 3: Audit Readiness Status
+        // Indicates if departments are ready for regulatory audits
+        "type": "stat",
+        "title": "Audit Readiness Status",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 8},
+        "targets": [
+          {
+            "refId": "C",
+            "expr": "audit_readiness_status{department=~\"Finance|Pharma|IT\"}",
+            "format": "table"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "center"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "options": {"1": {"text": "Ready"}, "0": {"text": "Not Ready"}}}
+            ]
+          }
+        }
+      },
+      {
+        // Panel 4: Regulatory Violation Trends
+        // Shows trends in compliance violations for proactive management
+        "type": "timeseries",
+        "title": "Regulatory Violation Trends",
+        "gridPos": {"x": 0, "y": 8, "w": 18, "h": 8},
+        "targets": [
+          {
+            "refId": "D",
+            "expr": "sum by (regulation) (violation_count)",
+            "format": "time_series"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "options": {
+          "legend": {"show": true, "placement": "bottom"}
+        }
+      },
+      {
+        // Panel 5: Executive Summary Metrics
+        // High-level KPIs for quick executive insight
+        "type": "stat",
+        "title": "Executive Summary Metrics",
+        "gridPos": {"x": 18, "y": 8, "w": 6, "h": 8},
+        "targets": [
+          {
+            "refId": "E",
+            "expr": "sum(compliance_score) / count(compliance_score)",
+            "format": "time_series"
+          },
+          {
+            "refId": "F",
+            "expr": "sum(violation_count)",
+            "format": "time_series"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "center"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      }
+    ],
+    "time": {
+      "from": "now-30d",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["5m", "15m", "30m", "1h", "6h", "12h", "24h"]
+    },
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    }
+  }
+}

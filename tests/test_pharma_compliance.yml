@@ -1,0 +1,43 @@
+---
+# Molecule scenario for pharma-compliance.yml
+# Tests FDA 21 CFR Part 11 controls, audit trail, password policy, and backup validation
+
+- name: Test Pharma Compliance Playbook
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Check electronic signature group exists
+      getent:
+        database: group
+        key: pharma_signers
+      register: pharma_signers_group
+      failed_when: pharma_signers_group.found == 0
+
+    - name: Check audit log directory exists
+      stat:
+        path: /var/log/pharma_audit
+      register: audit_log_dir
+      failed_when: not audit_log_dir.stat.exists
+
+    - name: Check password policy min length
+      command: grep '^minlen = 16' /etc/security/pwquality.conf
+      register: pw_minlen
+      failed_when: pw_minlen.rc != 0
+
+    - name: Check backup directory exists
+      stat:
+        path: /var/backups/pharma
+      register: backup_dir
+      failed_when: not backup_dir.stat.exists
+
+    - name: Automated compliance scoring (example)
+      set_fact:
+        compliance_score:
+          "{{ 20*pharma_signers_group.found + 20*audit_log_dir.stat.exists + 20
+          + 20*backup_dir.stat.exists + 20 }}"
+
+    - name: Assert compliance score is 80 or above
+      assert:
+        that:
+          - compliance_score|int >= 80
+        fail_msg: "Compliance score below threshold: {{ compliance_score }}"

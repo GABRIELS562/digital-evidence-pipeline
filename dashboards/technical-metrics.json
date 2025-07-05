@@ -1,0 +1,42 @@
+{
+  "dashboard": {
+    "title": "Technical Compliance Metrics",
+    "description": "Detailed technical compliance metrics and trends",
+    "version": "1.0.0",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Rule Execution Status",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "compliance_rule_execution_status",
+            "legendFormat": "{{rule_id}}"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Compliance Trend Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "compliance_score_trend",
+            "legendFormat": "Compliance Score"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Failed Checks by Category",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "compliance_failed_checks_by_category",
+            "legendFormat": "{{category}}"
+          }
+        ]
+      }
+    ]
+  }
+}

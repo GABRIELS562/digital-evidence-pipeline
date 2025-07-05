@@ -1,0 +1,49 @@
+---
+# Molecule scenario for finance-compliance.yml
+# Tests SOX and PCI-DSS controls, database audit log, privilege escalation tracking, and backup validation
+
+- name: Test Finance Compliance Playbook
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Check SOX data directory exists
+      stat:
+        path: /finance/sox_data
+      register: sox_dir
+      failed_when: not sox_dir.stat.exists
+
+    - name: Check PCI payment card data directory exists
+      stat:
+        path: /finance/payment_card_data
+      register: pci_dir
+      failed_when: not pci_dir.stat.exists
+
+    - name: Check database audit log file exists
+      stat:
+        path: /var/log/finance_db_audit.log
+      register: db_audit_log
+      failed_when: not db_audit_log.stat.exists
+
+    - name: Check privilege escalation audit rule
+      command: grep 'priv_esc' /etc/audit/rules.d/priv_esc.rules
+      register: priv_esc_rule
+      failed_when: priv_esc_rule.rc != 0
+
+    - name: Check backup directory exists
+      stat:
+        path: /var/backups/finance
+      register: backup_dir
+      failed_when: not backup_dir.stat.exists
+
+    - name: Automated compliance scoring (example)
+      set_fact:
+        compliance_score:
+          "{{ 20*sox_dir.stat.exists + 20*pci_dir.stat.exists +
+          20*db_audit_log.stat.exists + 20*priv_esc_rule.rc == 0 +
+          20*backup_dir.stat.exists }}"
+
+    - name: Assert compliance score is 80 or above
+      assert:
+        that:
+          - compliance_score|int >= 80
+        fail_msg: "Compliance score below threshold: {{ compliance_score }}"

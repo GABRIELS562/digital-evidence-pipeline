@@ -1,0 +1,141 @@
+---
+# Financial Services Compliance Automation Playbook
+# Purpose: Enforce SOX and PCI-DSS requirements for financial environments.
+# This playbook demonstrates:
+#   - SOX-compliant financial data access logging
+#   - PCI-DSS controls for payment card data
+#   - Database access monitoring and logging
+#   - Privilege escalation tracking
+#   - Forensic chain-of-custody audit trails
+
+name: Finance Compliance Automation (SOX, PCI-DSS)
+hosts: all
+become: yes
+vars:
+  finance_audit_log_dir: /var/log/finance_audit
+  finance_db_audit_log: /var/log/finance_db_audit.log
+  finance_backup_dir: /var/backups/finance
+  pci_data_dir: /finance/payment_card_data
+  sox_data_dir: /finance/sox_data
+
+tasks:
+  # 1. SOX Compliance: Financial Data Access Logging
+  # SOX requires detailed logging of all access to financial data for auditability.
+  - name: Create SOX data directory with restricted access
+    file:
+      path: "{{ sox_data_dir }}"
+      state: directory
+      owner: root
+      group: root
+      mode: '0750'
+
+  - name: Configure auditd for SOX financial data access
+    copy:
+      dest: /etc/audit/rules.d/sox.rules
+      content: |
+        # SOX - Audit access to financial data
+        -w {{ sox_data_dir }}/ -p wa -k sox_financial_data
+    notify: Restart auditd
+    tags: sox
+
+  # 2. PCI-DSS: Payment Card Data Controls
+  # PCI-DSS requires strict access controls, encryption, and logging for payment card data.
+  - name: Create PCI payment card data directory with strict access
+    file:
+      path: "{{ pci_data_dir }}"
+      state: directory
+      owner: root
+      group: root
+      mode: '0700'
+
+  - name: Configure auditd for PCI payment card data access
+    copy:
+      dest: /etc/audit/rules.d/pci.rules
+      content: |
+        # PCI-DSS - Audit access to payment card data
+        -w {{ pci_data_dir }}/ -p wa -k pci_card_data
+    notify: Restart auditd
+    tags: pci
+
+  - name: Ensure encryption tools are installed for PCI data (example: fscrypt)
+    package:
+      name: fscrypt
+      state: present
+    tags: pci
+
+  - name: Initialize fscrypt on PCI data directory
+    command: fscrypt setup {{ pci_data_dir }}
+    args:
+      creates: {{ pci_data_dir }}/.fscrypt
+    tags: pci
+
+  # 3. Database Access Monitoring and Logging
+  # Both SOX and PCI-DSS require monitoring and logging of database access.
+  - name: Ensure database audit log file exists
+    file:
+      path: "{{ finance_db_audit_log }}"
+      state: touch
+      owner: root
+      group: root
+      mode: '0600'
+
+  - name: Configure auditd for database access (example: PostgreSQL log monitoring)
+    copy:
+      dest: /etc/audit/rules.d/db.rules
+      content: |
+        # Monitor database log file for access and changes
+        -w {{ finance_db_audit_log }} -p wa -k db_access
+    notify: Restart auditd
+    tags: db_monitoring
+
+  # 4. Privilege Escalation Tracking
+  # Forensic chain-of-custody requires tracking all privilege escalations (sudo, su, etc.).
+  - name: Configure auditd for sudo and su usage
+    copy:
+      dest: /etc/audit/rules.d/priv_esc.rules
+      content: |
+        # Track sudo and su commands for privilege escalation
+        -w /var/log/auth.log -p wa -k priv_esc
+        -a always,exit -F arch=b64 -S execve -C uid!=euid -F euid=0 -k priv_esc
+    notify: Restart auditd
+    tags: priv_esc
+
+  # 5. Financial Audit Trail Requirements (Chain-of-Custody)
+  # Ensure all logs are tamper-evident and backups are validated for forensic integrity.
+  - name: Create dedicated finance audit log directory
+    file:
+      path: "{{ finance_audit_log_dir }}"
+      state: directory
+      owner: root
+      group: root
+      mode: '0700'
+
+  - name: Ensure audit logs are immutable (tamper-evident)
+    lineinfile:
+      path: /etc/audit/audit.rules
+      line: '-e 2'
+      create: yes
+    notify: Restart auditd
+    tags: audit_trail
+
+  - name: Schedule daily backup of financial audit logs with validation
+    cron:
+      name: "Finance Audit Log Backup"
+      user: root
+      minute: 30
+      hour: 2
+      job: "tar czf {{ finance_backup_dir }}/audit-$(date +\%F).tar.gz {{ finance_audit_log_dir }}/ && sha256sum {{ finance_backup_dir }}/audit-$(date +\%F).tar.gz > {{ finance_backup_dir }}/audit-$(date +\%F).sha256"
+    tags: backup
+
+  - name: Validate latest backup integrity
+    shell: "cd {{ finance_backup_dir }} && sha256sum -c audit-$(date +\%F).sha256"
+    register: backup_validation
+    changed_when: false
+    failed_when: backup_validation.rc != 0
+    tags: backup
+
+handlers:
+  - name: Restart auditd
+    service:
+      name: auditd
+      state: restarted

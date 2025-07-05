@@ -1,0 +1,20 @@
+---
+name: Base System Hardening Playbook
+description: Baseline security hardening for all systems
+version: 1.0.0
+
+rules:
+  - id: BASE_001
+    name: SSH Configuration
+    description: Secure SSH configuration validation
+    severity: high
+    
+  - id: BASE_002
+    name: File Permissions
+    description: Critical file permission checks
+    severity: medium
+    
+  - id: BASE_003
+    name: User Account Security
+    description: User account security validation
+    severity: high

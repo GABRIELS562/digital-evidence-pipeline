@@ -1,0 +1,186 @@
+---
+# Pharma Compliance Automation Playbook
+# Purpose: Enforce FDA 21 CFR Part 11 requirements for pharmaceutical environments.
+# This playbook goes beyond generic CIS hardening by focusing on:
+#   - Electronic signature controls
+#   - Forensic-grade audit trails
+#   - Enhanced password policies
+#   - Electronic record security
+#   - Data backup and validation
+
+name: Pharmaceutical Compliance Playbook
+description: Automated compliance checks for pharmaceutical industry
+version: 1.0.0
+
+rules:
+  - id: PHARMA_001
+    name: Data Integrity
+    description: Ensure data integrity requirements are met
+    severity: high
+    
+  - id: PHARMA_002
+    name: Audit Trail
+    description: Verify audit trail completeness
+    severity: critical
+    
+  - id: PHARMA_003
+    name: User Access Control
+    description: Validate user access permissions
+    severity: high
+
+- name: Pharma Compliance Automation (FDA 21 CFR Part 11)
+  hosts: all
+  become: yes
+  vars:
+    pharma_password_min_length: 16  # Stronger than CIS (usually 8-12)
+    pharma_password_complexity: true
+    pharma_audit_log_dir: /var/log/pharma_audit
+    pharma_backup_dir: /var/backups/pharma
+    pharma_electronic_signature_group: pharma_signers
+
+  tasks:
+    # 1. Enforce Electronic Signature Controls
+    # FDA 21 CFR Part 11 requires unique electronic signatures and dual authentication for signing events.
+    - name: Ensure group for electronic signers exists
+      group:
+        name: "{{ pharma_electronic_signature_group }}"
+        state: present
+
+    - name: Ensure users in pharma_signers group have 2FA enabled (example: SSH with public key + OTP)
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^AuthenticationMethods'
+        line: 'AuthenticationMethods publickey,keyboard-interactive:pam'
+      notify: Restart sshd
+      tags: electronic_signature
+
+    # 2. Forensic-Grade Audit Trail Automation
+    # More granular and tamper-evident than generic CIS logging.
+    - name: Create dedicated pharma audit log directory
+      file:
+        path: "{{ pharma_audit_log_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Configure auditd for pharma-specific events (file access, signature events, record changes)
+      copy:
+        dest: /etc/audit/rules.d/pharma.rules
+        content: |
+          # FDA 21 CFR Part 11 - Audit trail for electronic records
+          -w /pharma/records/ -p wa -k pharma_records
+          -w /pharma/signatures/ -p wa -k pharma_signatures
+          -w /etc/passwd -p wa -k user_changes
+          -w /etc/shadow -p wa -k user_changes
+          -w /var/log/pharma_audit/ -p wa -k pharma_audit
+      notify: Restart auditd
+      tags: audit_trail
+
+    - name: Ensure audit logs are immutable (tamper-evident)
+      lineinfile:
+        path: /etc/audit/audit.rules
+        line: '-e 2'
+        create: yes
+      notify: Restart auditd
+      tags: audit_trail
+
+    # 3. Enforce Stronger Password Policies
+    # Stricter than CIS: longer length, complexity, rotation, and history.
+    - name: Set minimum password length
+      lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^minlen'
+        line: "minlen = {{ pharma_password_min_length }}"
+      tags: password_policy
+
+    - name: Enforce password complexity (upper, lower, digit, special)
+      lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^minclass'
+        line: 'minclass = 4'
+      tags: password_policy
+
+    - name: Set password history to prevent reuse (last 10 passwords)
+      lineinfile:
+        path: /etc/pam.d/common-password
+        insertafter: EOF
+        line: 'password required pam_pwhistory.so remember=10'
+      tags: password_policy
+
+    - name: Set password maximum age to 60 days
+      lineinfile:
+        path: /etc/login.defs
+        regexp: '^PASS_MAX_DAYS'
+        line: 'PASS_MAX_DAYS   60'
+      tags: password_policy
+
+    # 4. Electronic Record Security
+    # File integrity, access controls, and encryption for pharma records.
+    - name: Ensure pharma records directory exists
+      file:
+        path: /pharma/records/
+        state: directory
+        owner: root
+        group: root
+        mode: '0750'
+
+    - name: Set up file integrity monitoring (AIDE)
+      package:
+        name: aide
+        state: present
+      tags: record_security
+
+    - name: Initialize AIDE database
+      command: /usr/sbin/aideinit
+      args:
+        creates: /var/lib/aide/aide.db.new.gz
+      tags: record_security
+
+    - name: Encrypt pharma records at rest (example: using fscrypt)
+      package:
+        name: fscrypt
+        state: present
+      tags: record_security
+
+    - name: Initialize fscrypt on pharma records directory
+      command: fscrypt setup /pharma/records/
+      args:
+        creates: /pharma/records/.fscrypt
+      tags: record_security
+
+    # 5. Data Backup and Validation Procedures
+    # Automated, validated, and auditable backups.
+    - name: Ensure pharma backup directory exists
+      file:
+        path: "{{ pharma_backup_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Schedule daily backup of pharma records with validation
+      cron:
+        name: "Pharma Records Backup"
+        user: root
+        minute: 0
+        hour: 2
+        job: "tar czf {{ pharma_backup_dir }}/records-$(date +\%F).tar.gz /pharma/records/ && sha256sum {{ pharma_backup_dir }}/records-$(date +\%F).tar.gz > {{ pharma_backup_dir }}/records-$(date +\%F).sha256"
+      tags: backup
+
+    - name: Validate latest backup integrity
+      shell: "cd {{ pharma_backup_dir }} && sha256sum -c records-$(date +\%F).sha256"
+      register: backup_validation
+      changed_when: false
+      failed_when: backup_validation.rc != 0
+      tags: backup
+
+  handlers:
+    - name: Restart sshd
+      service:
+        name: sshd
+        state: restarted
+    - name: Restart auditd
+      service:
+        name: auditd
+        state: restarted

@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - compliance-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../dashboards:/etc/grafana/provisioning/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - compliance-net
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.2
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - compliance-net
+
+  compliance-monitor:
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.compliance-monitor
+    container_name: compliance-monitor
+    volumes:
+      - ../scripts:/app/scripts:ro
+    command: ["python3", "/app/scripts/compliance-metrics.py"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      - prometheus
+      - elasticsearch
+    networks:
+      - compliance-net
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  es_data:
+
+networks:
+  compliance-net:
+    driver: bridge 

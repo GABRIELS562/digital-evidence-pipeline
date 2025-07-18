@@ -42,19 +42,78 @@ def calculate_compliance_score():
 
 def check_audit_trail():
     """Check if audit trail is complete (1) or incomplete (0)."""
-    # For demonstration, randomly simulate completeness
-    # In production, check for missing log files, gaps, or tampering
-    return 1 if random.random() > 0.1 else 0
+    # Check for audit log files in expected locations
+    audit_paths = [
+        '/var/log/audit/audit.log',
+        '/var/log/auth.log', 
+        '/var/log/syslog'
+    ]
+    
+    missing_logs = 0
+    for path in audit_paths:
+        if not os.path.exists(path):
+            missing_logs += 1
+    
+    # Return 1 if most logs are present, 0 if significant gaps
+    completeness = 1 - (missing_logs / len(audit_paths))
+    return 1 if completeness > 0.7 else 0
 
 def check_security_policy_violations():
     """Return 1 if violations detected, else 0."""
-    # In production, scan logs/configs for violations
+    # Check common security violation indicators
+    violation_indicators = [
+        'failed password',
+        'authentication failure', 
+        'invalid user',
+        'root login',
+        'sudo command'
+    ]
+    
+    # Check recent auth logs for violations
+    auth_log_path = '/var/log/auth.log'
+    if os.path.exists(auth_log_path):
+        try:
+            with open(auth_log_path, 'r') as f:
+                recent_logs = f.readlines()[-100:]  # Last 100 lines
+                for line in recent_logs:
+                    for indicator in violation_indicators:
+                        if indicator in line.lower():
+                            return 1
+        except (IOError, OSError):
+            pass
+    
+    # If no logs accessible, use fallback simulation
     return 1 if random.random() > 0.8 else 0
 
 def check_risk_level():
     """Return a risk score (0-10)."""
-    # In production, aggregate findings, vulnerabilities, incidents
-    return random.randint(0, 10)
+    # Calculate risk based on system indicators
+    risk_factors = []
+    
+    # Check system load (higher load = higher risk)
+    try:
+        load_avg = os.getloadavg()[0]  # 1-minute load average
+        cpu_count = os.cpu_count() or 1
+        cpu_usage = min(load_avg / cpu_count, 1.0)
+        risk_factors.append(cpu_usage * 3)  # 0-3 risk points
+    except (OSError, AttributeError):
+        risk_factors.append(1)  # Default moderate risk
+    
+    # Check disk usage (higher usage = higher risk)  
+    try:
+        disk_usage = os.statvfs('/').f_bavail / os.statvfs('/').f_blocks
+        disk_risk = (1 - disk_usage) * 4  # 0-4 risk points
+        risk_factors.append(disk_risk)
+    except (OSError, AttributeError):
+        risk_factors.append(2)  # Default moderate risk
+    
+    # Check recent failed logins (security risk)
+    auth_failures = check_security_policy_violations()
+    risk_factors.append(auth_failures * 3)  # 0-3 risk points
+    
+    # Calculate total risk (0-10)
+    total_risk = sum(risk_factors)
+    return min(int(total_risk), 10)
 
 # --- Main Metrics Collection Loop ---
 def main():

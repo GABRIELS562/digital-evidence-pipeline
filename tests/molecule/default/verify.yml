@@ -1,0 +1,82 @@
+---
+- name: Verify pharma compliance
+  hosts: pharma-test
+  gather_facts: false
+  tasks:
+    - name: Check FDA 21 CFR Part 11 audit logging
+      ansible.builtin.stat:
+        path: /var/log/audit/audit.log
+      register: audit_log
+
+    - name: Verify audit log exists
+      ansible.builtin.assert:
+        that:
+          - audit_log.stat.exists
+        fail_msg: "Audit log not found - FDA 21 CFR Part 11 requirement"
+
+    - name: Check file integrity monitoring
+      ansible.builtin.stat:
+        path: /etc/aide/aide.conf
+      register: aide_config
+
+    - name: Verify AIDE is configured
+      ansible.builtin.assert:
+        that:
+          - aide_config.stat.exists
+        fail_msg: "AIDE not configured - data integrity requirement"
+
+    - name: Check password policy
+      ansible.builtin.lineinfile:
+        path: /etc/pam.d/common-password
+        regexp: 'pam_pwquality.so'
+        state: absent
+      check_mode: yes
+      register: password_policy
+
+    - name: Verify password policy is enforced
+      ansible.builtin.assert:
+        that:
+          - password_policy.changed == false
+        fail_msg: "Password policy not enforced"
+
+- name: Verify finance compliance
+  hosts: finance-test
+  gather_facts: false
+  tasks:
+    - name: Check SOX financial data access logging
+      ansible.builtin.stat:
+        path: /var/log/financial-access.log
+      register: financial_log
+
+    - name: Verify financial access logging
+      ansible.builtin.assert:
+        that:
+          - financial_log.stat.exists
+        fail_msg: "Financial access logging not configured - SOX requirement"
+
+    - name: Check PCI DSS network segmentation
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 22
+        jump: ACCEPT
+        state: present
+      check_mode: yes
+      register: ssh_rule
+
+    - name: Verify network controls
+      ansible.builtin.assert:
+        that:
+          - ssh_rule.changed == false
+        fail_msg: "Network segmentation not properly configured"
+
+    - name: Check encryption at rest
+      ansible.builtin.stat:
+        path: /etc/crypttab
+      register: encryption_config
+
+    - name: Verify data encryption
+      ansible.builtin.assert:
+        that:
+          - encryption_config.stat.exists
+        fail_msg: "Encryption at rest not configured"

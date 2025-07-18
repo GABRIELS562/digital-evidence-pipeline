@@ -6,6 +6,7 @@ services:
     container_name: prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
@@ -15,10 +16,11 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./admin_password:/etc/grafana/admin_password:ro
+      - ./provisioning:/etc/grafana/provisioning:ro
       - ../dashboards:/etc/grafana/provisioning/dashboards:ro
     ports:
       - "3000:3000"

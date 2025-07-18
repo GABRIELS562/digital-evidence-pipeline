@@ -1,0 +1,94 @@
+groups:
+  - name: compliance_alerts
+    rules:
+      - alert: ComplianceScoreLow
+        expr: compliance_score < 80
+        for: 5m
+        labels:
+          severity: warning
+          compliance_type: overall
+        annotations:
+          summary: "Compliance score is below threshold"
+          description: "Overall compliance score is {{ $value }}% which is below the 80% threshold for {{ $labels.instance }}"
+
+      - alert: ComplianceScoreCritical
+        expr: compliance_score < 60
+        for: 2m
+        labels:
+          severity: critical
+          compliance_type: overall
+        annotations:
+          summary: "Compliance score critically low"
+          description: "Overall compliance score is {{ $value }}% which is critically low for {{ $labels.instance }}"
+
+      - alert: AuditTrailIncomplete
+        expr: audit_trail_complete == 0
+        for: 1m
+        labels:
+          severity: critical
+          compliance_type: audit
+        annotations:
+          summary: "Audit trail is incomplete"
+          description: "Audit trail completeness check failed for {{ $labels.instance }}. This violates regulatory requirements."
+
+      - alert: SecurityPolicyViolations
+        expr: increase(security_policy_violations[5m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+          compliance_type: security
+        annotations:
+          summary: "Security policy violations detected"
+          description: "{{ $value }} security policy violations detected in the last 5 minutes on {{ $labels.instance }}"
+
+      - alert: HighRiskScore
+        expr: risk_assessment_score > 7
+        for: 3m
+        labels:
+          severity: warning
+          compliance_type: risk
+        annotations:
+          summary: "High risk score detected"
+          description: "Risk assessment score is {{ $value }}/10 which indicates high risk for {{ $labels.instance }}"
+
+      - alert: CriticalRiskScore
+        expr: risk_assessment_score > 9
+        for: 1m
+        labels:
+          severity: critical
+          compliance_type: risk
+        annotations:
+          summary: "Critical risk score detected"
+          description: "Risk assessment score is {{ $value }}/10 which indicates critical risk for {{ $labels.instance }}"
+
+      - alert: ComplianceMonitorDown
+        expr: up{job="compliance-monitor"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          compliance_type: monitoring
+        annotations:
+          summary: "Compliance monitor service is down"
+          description: "The compliance monitoring service is not responding on {{ $labels.instance }}"
+
+  - name: system_alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: (100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+        for: 5m
+        labels:
+          severity: warning
+          compliance_type: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}% which may impact compliance monitoring performance"
+
+      - alert: HighDiskUsage
+        expr: (100 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"}) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+          compliance_type: system
+        annotations:
+          summary: "High disk usage detected"
+          description: "Disk usage is {{ $value }}% which may impact audit log storage"

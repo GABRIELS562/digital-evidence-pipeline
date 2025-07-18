@@ -1,0 +1,22 @@
+---
+- name: Test pharma compliance on pharma-test
+  hosts: pharma-test
+  gather_facts: true
+  vars:
+    compliance_type: pharma
+    fda_21cfr_part11: true
+    gmp_compliance: true
+  tasks:
+    - name: Include pharma compliance playbook
+      include: ../../../playbooks/pharma-compliance.yml
+
+- name: Test finance compliance on finance-test
+  hosts: finance-test
+  gather_facts: true
+  vars:
+    compliance_type: finance
+    sox_compliance: true
+    pci_dss_compliance: true
+  tasks:
+    - name: Include finance compliance playbook
+      include: ../../../playbooks/finance-compliance.yml

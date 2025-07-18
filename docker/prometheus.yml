@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+  - "alert_rules.yml"
+
+# A scrape configuration containing exactly one endpoint to scrape:
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Compliance metrics from our custom application
+  - job_name: "compliance-monitor"
+    static_configs:
+      - targets: ["compliance-monitor:8000"]
+    scrape_interval: 30s
+    metrics_path: /metrics
+    
+  # Node exporter for system metrics (optional - for infrastructure monitoring)
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+    scrape_interval: 15s
+
+# Compliance-specific recording rules for aggregation
+recording_rules:
+  - name: compliance_rules
+    rules:
+      - record: avg_compliance_score_5m
+        expr: avg_over_time(compliance_score[5m])
+      - record: total_security_violations_1h
+        expr: increase(security_policy_violations[1h])
+      - record: max_risk_score_1h
+        expr: max_over_time(risk_assessment_score[1h])

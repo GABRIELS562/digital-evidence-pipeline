@@ -1,0 +1,165 @@
+# ================================================================================
+# SRE MONITORING CONFIGURATION - PROMETHEUS
+# ================================================================================
+# This file demonstrates fundamental SRE monitoring practices using Prometheus
+# 
+# SRE CONCEPTS DEMONSTRATED:
+# - Service Level Indicators (SLIs): Metrics that matter for service reliability
+# - Golden Signals: Latency, Traffic, Errors, Saturation
+# - Recording Rules: Pre-computed metrics for faster queries and dashboards
+# - Scrape Configuration: How to collect metrics from various services
+# ================================================================================
+
+global:
+  # SRE FUNDAMENTAL: Scrape interval determines monitoring resolution
+  # 15s provides good balance between resource usage and alerting responsiveness
+  scrape_interval: 15s
+  
+  # SRE FUNDAMENTAL: Evaluation interval for recording and alerting rules
+  # Should match or be multiple of scrape_interval for consistency
+  evaluation_interval: 15s
+
+# ================================================================================
+# ALERTING CONFIGURATION
+# ================================================================================
+# SRE FUNDAMENTAL: Alerting is critical for maintaining service reliability
+# Alerts should be actionable and tied to customer impact
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+# ================================================================================
+# RULE FILES
+# ================================================================================
+# SRE FUNDAMENTAL: Recording rules pre-compute expensive queries
+# Alert rules define conditions that require human attention
+rule_files:
+  - "sre-recording-rules.yml"
+  - "sre-alert-rules.yml"
+
+# ================================================================================
+# SCRAPE CONFIGURATIONS - THE FOUR GOLDEN SIGNALS
+# ================================================================================
+# SRE FUNDAMENTAL: Monitor what matters for user experience
+# Golden Signals: Latency, Traffic, Errors, Saturation
+
+scrape_configs:
+  # ============================================================================
+  # PROMETHEUS SELF-MONITORING
+  # ============================================================================
+  # SRE PRACTICE: Always monitor your monitoring system
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+    scrape_interval: 15s
+
+  # ============================================================================
+  # APPLICATION METRICS - PRIMARY SLI SOURCE
+  # ============================================================================
+  # SRE FUNDAMENTAL: Application metrics provide key SLIs
+  # These metrics directly relate to user experience and service health
+  - job_name: "compliance-service"
+    static_configs:
+      - targets: ["compliance-monitor:8000"]
+    scrape_interval: 30s
+    metrics_path: /metrics
+    
+    # SRE PRACTICE: Add labels for service identification
+    relabel_configs:
+      - target_label: service
+        replacement: compliance-platform
+      - target_label: environment  
+        replacement: production
+
+  # ============================================================================
+  # INFRASTRUCTURE METRICS - SATURATION MONITORING
+  # ============================================================================
+  # SRE FUNDAMENTAL: Monitor infrastructure capacity and utilization
+  # Essential for capacity planning and saturation detection
+  - job_name: "node-metrics"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+    scrape_interval: 15s
+    
+    # SRE PRACTICE: Collect key system metrics for the Four Golden Signals
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'node_(cpu|memory|disk|network).*'
+        target_label: __tmp_keep
+        replacement: 'keep'
+
+  # ============================================================================
+  # LOAD BALANCER METRICS - TRAFFIC AND LATENCY
+  # ============================================================================
+  # SRE FUNDAMENTAL: Network layer metrics for traffic and latency SLIs
+  - job_name: "load-balancer"
+    static_configs:
+      - targets: ["nginx-exporter:9113"]
+    scrape_interval: 15s
+
+# ================================================================================
+# SRE RECORDING RULES - PRE-COMPUTED METRICS
+# ================================================================================
+# SRE FUNDAMENTAL: Recording rules improve query performance and enable
+# consistent SLI calculations across dashboards and alerts
+
+recording_rules:
+  # SERVICE LEVEL INDICATORS (SLIs)
+  - name: sre_service_slis
+    interval: 30s
+    rules:
+      # SRE SLI: Availability (Error Rate)
+      - record: sre:service_availability_5m
+        expr: |
+          (
+            rate(http_requests_total{code!~"5.."}[5m]) /
+            rate(http_requests_total[5m])
+          ) * 100
+        labels:
+          sli_type: "availability"
+          
+      # SRE SLI: Latency (Response Time)
+      - record: sre:service_latency_p99_5m
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))
+        labels:
+          sli_type: "latency"
+          
+      # SRE SLI: Throughput (Request Rate)
+      - record: sre:service_throughput_5m
+        expr: rate(http_requests_total[5m])
+        labels:
+          sli_type: "throughput"
+
+  # INFRASTRUCTURE SLIS
+  - name: sre_infrastructure_slis
+    interval: 30s  
+    rules:
+      # SRE SLI: CPU Saturation
+      - record: sre:cpu_utilization_5m
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+        labels:
+          sli_type: "saturation"
+          
+      # SRE SLI: Memory Saturation  
+      - record: sre:memory_utilization_5m
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+        labels:
+          sli_type: "saturation"
+
+  # BUSINESS METRICS (COMPLIANCE-SPECIFIC)
+  - name: sre_business_slis
+    interval: 60s
+    rules:
+      # SRE PRACTICE: Business-relevant SLIs
+      - record: sre:compliance_score_avg_1h
+        expr: avg_over_time(compliance_score[1h])
+        labels:
+          sli_type: "business"
+          
+      # SRE PRACTICE: Error budget calculation
+      - record: sre:error_budget_remaining
+        expr: |
+          (sre:service_availability_5m - 99.9) / (100 - 99.9) * 100
+        labels:
+          sli_type: "error_budget"

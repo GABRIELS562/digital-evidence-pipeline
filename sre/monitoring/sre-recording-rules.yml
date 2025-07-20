@@ -1,0 +1,186 @@
+# ================================================================================
+# SRE RECORDING RULES
+# ================================================================================
+# SRE FUNDAMENTAL: Recording rules pre-compute expensive queries for:
+# - Faster dashboard loading
+# - Consistent SLI calculations
+# - Reduced query load on Prometheus
+# - Historical data aggregation
+# ================================================================================
+
+groups:
+  # ============================================================================
+  # SERVICE LEVEL INDICATORS (SLIs) - GOLDEN SIGNALS
+  # ============================================================================
+  # SRE CONCEPT: SLIs are the metrics that most accurately reflect user experience
+  
+  - name: sre_golden_signals
+    interval: 30s
+    rules:
+    
+      # LATENCY SLI
+      # SRE PRINCIPLE: Measure how fast your service responds
+      - record: sre:http_request_latency_p50
+        expr: histogram_quantile(0.50, rate(http_request_duration_seconds_bucket[5m]))
+        labels:
+          golden_signal: "latency"
+          percentile: "p50"
+          
+      - record: sre:http_request_latency_p95
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+        labels:
+          golden_signal: "latency" 
+          percentile: "p95"
+          
+      - record: sre:http_request_latency_p99
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))
+        labels:
+          golden_signal: "latency"
+          percentile: "p99"
+
+      # TRAFFIC SLI  
+      # SRE PRINCIPLE: Measure demand on your service
+      - record: sre:http_requests_rate_5m
+        expr: rate(http_requests_total[5m])
+        labels:
+          golden_signal: "traffic"
+          
+      # ERRORS SLI
+      # SRE PRINCIPLE: Measure the rate of failed requests
+      - record: sre:http_error_rate_5m
+        expr: |
+          rate(http_requests_total{code=~"5.."}[5m]) /
+          rate(http_requests_total[5m])
+        labels:
+          golden_signal: "errors"
+          
+      # SUCCESS RATE (Inverse of error rate)
+      - record: sre:http_success_rate_5m
+        expr: |
+          rate(http_requests_total{code!~"5.."}[5m]) /
+          rate(http_requests_total[5m])
+        labels:
+          golden_signal: "success"
+
+      # SATURATION SLI
+      # SRE PRINCIPLE: Measure how "full" your service is
+      - record: sre:cpu_utilization_5m
+        expr: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+        labels:
+          golden_signal: "saturation"
+          resource: "cpu"
+          
+      - record: sre:memory_utilization_5m  
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+        labels:
+          golden_signal: "saturation"
+          resource: "memory"
+
+  # ============================================================================
+  # SERVICE LEVEL OBJECTIVES (SLOs)
+  # ============================================================================
+  # SRE CONCEPT: SLOs define the target reliability for your service
+  
+  - name: sre_service_slos
+    interval: 60s
+    rules:
+    
+      # AVAILABILITY SLO (99.9% uptime target)
+      # SRE PRACTICE: Track availability against business targets
+      - record: sre:availability_slo_target
+        expr: 99.9
+        labels:
+          slo_type: "availability"
+          
+      - record: sre:availability_current
+        expr: sre:http_success_rate_5m * 100
+        labels:
+          slo_type: "availability"
+          
+      # LATENCY SLO (95% of requests under 500ms)  
+      - record: sre:latency_slo_target
+        expr: 0.5  # 500ms
+        labels:
+          slo_type: "latency"
+          
+      # ERROR BUDGET CALCULATION
+      # SRE CONCEPT: Error budget = (100% - SLO) over time period
+      - record: sre:error_budget_total
+        expr: (100 - 99.9) # 0.1% error budget for 99.9% SLO
+        labels:
+          slo_type: "error_budget"
+          
+      - record: sre:error_budget_consumed
+        expr: |
+          (100 - sre:availability_current) 
+        labels:
+          slo_type: "error_budget"
+          
+      - record: sre:error_budget_remaining_percent
+        expr: |
+          ((sre:error_budget_total - sre:error_budget_consumed) / sre:error_budget_total) * 100
+        labels:
+          slo_type: "error_budget"
+
+  # ============================================================================
+  # INFRASTRUCTURE HEALTH
+  # ============================================================================
+  # SRE PRACTICE: Monitor infrastructure components that support services
+  
+  - name: sre_infrastructure_health
+    interval: 30s
+    rules:
+    
+      # DISK UTILIZATION
+      - record: sre:disk_utilization_5m
+        expr: |
+          (1 - (node_filesystem_free_bytes / node_filesystem_size_bytes)) * 100
+        labels:
+          resource_type: "storage"
+          
+      # NETWORK I/O RATE
+      - record: sre:network_receive_rate_5m
+        expr: rate(node_network_receive_bytes_total[5m])
+        labels:
+          resource_type: "network"
+          direction: "receive"
+          
+      - record: sre:network_transmit_rate_5m
+        expr: rate(node_network_transmit_bytes_total[5m])  
+        labels:
+          resource_type: "network"
+          direction: "transmit"
+
+  # ============================================================================
+  # BUSINESS METRICS (COMPLIANCE-SPECIFIC)
+  # ============================================================================
+  # SRE PRACTICE: Track business-relevant metrics alongside technical metrics
+  
+  - name: sre_business_metrics
+    interval: 300s  # 5 minute intervals for business metrics
+    rules:
+    
+      # COMPLIANCE SCORE TRENDING
+      - record: sre:compliance_score_hourly_avg
+        expr: avg_over_time(compliance_score[1h])
+        labels:
+          metric_type: "business"
+          
+      - record: sre:compliance_score_daily_avg
+        expr: avg_over_time(compliance_score[24h])
+        labels:
+          metric_type: "business"
+          
+      # AUDIT TRAIL COMPLETENESS  
+      - record: sre:audit_completeness_rate
+        expr: |
+          sum(audit_events_recorded) / sum(audit_events_expected) * 100
+        labels:
+          metric_type: "business"
+          
+      # SECURITY INCIDENT RATE
+      - record: sre:security_incidents_per_hour
+        expr: rate(security_policy_violations[1h])
+        labels:
+          metric_type: "security"

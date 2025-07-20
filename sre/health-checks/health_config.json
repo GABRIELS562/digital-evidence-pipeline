@@ -1,0 +1,46 @@
+{
+  "startup_timeout_seconds": 60,
+  "dependency_timeout_seconds": 5,
+  "circuit_breaker_threshold": 5,
+  "circuit_breaker_reset_timeout": 30,
+  "dependencies": {
+    "database": {
+      "url": "postgresql://localhost:5432/compliance",
+      "critical": true,
+      "description": "Primary compliance database"
+    },
+    "prometheus": {
+      "url": "http://prometheus:9090/-/healthy",
+      "critical": true,
+      "description": "Metrics collection and alerting"
+    },
+    "grafana": {
+      "url": "http://grafana:3000/api/health", 
+      "critical": false,
+      "description": "Monitoring dashboards"
+    },
+    "elasticsearch": {
+      "url": "http://elasticsearch:9200/_cluster/health",
+      "critical": false,
+      "description": "Log aggregation and search"
+    },
+    "external_compliance_api": {
+      "url": "https://api.compliance-service.com/health",
+      "critical": false,
+      "description": "External compliance data feed"
+    }
+  },
+  "resource_thresholds": {
+    "cpu_warning_percent": 80,
+    "cpu_critical_percent": 95,
+    "memory_warning_percent": 85,
+    "memory_critical_percent": 95,
+    "disk_warning_percent": 80,
+    "disk_critical_percent": 90
+  },
+  "slo_targets": {
+    "availability_percent": 99.9,
+    "latency_p99_ms": 500,
+    "error_rate_percent": 0.1
+  }
+}

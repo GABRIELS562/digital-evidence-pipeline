@@ -47,21 +47,65 @@ services:
       context: ..
       dockerfile: ./docker/Dockerfile.compliance-monitor
     container_name: compliance-monitor
+    environment:
+      - PROMETHEUS_PORT=8000
+      - LOG_LEVEL=INFO
+      - HEALTH_CHECK_CONFIG=/app/config/health_config.json
     volumes:
       - ../scripts:/app/scripts:ro
+      - ../sre/health-checks/health_config.json:/app/config/health_config.json:ro
     command: ["python3", "/app/scripts/compliance-metrics.py"]
     ports:
       - "8000:8000"
     depends_on:
       - prometheus
       - elasticsearch
+      - alertmanager
     networks:
       - compliance-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/liveness"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--cluster.advertise-address=0.0.0.0:9093'
+    networks:
+      - compliance-net
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.rootfs=/host'
+    pid: host
+    volumes:
+      - '/:/host:ro,rslave'
+    networks:
+      - compliance-net
+    restart: unless-stopped
 
 volumes:
   prometheus_data:
   grafana_data:
   es_data:
+  alertmanager_data:
 
 networks:
   compliance-net:

@@ -1,0 +1,231 @@
+# ================================================================================
+# ALERTMANAGER CONFIGURATION
+# ================================================================================
+# SRE PRACTICE: Centralized alert routing and notification management
+#
+# SRE CONCEPTS DEMONSTRATED:
+# - Alert Grouping: Reduce notification noise
+# - Routing Rules: Different alerts to different teams
+# - Inhibition: Suppress redundant alerts
+# - Receiver Configuration: Multiple notification channels
+# ================================================================================
+
+global:
+  # SRE PRACTICE: Global SMTP configuration for email alerts
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alertmanager@compliance-platform.com'
+  smtp_auth_username: 'alertmanager'
+  smtp_auth_password: 'smtp_password'  # In production: use secrets management
+  
+  # SRE PRACTICE: Global notification settings
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+
+# ================================================================================
+# ROUTING CONFIGURATION
+# ================================================================================
+# SRE PRINCIPLE: Route alerts based on severity and team responsibility
+
+route:
+  # SRE PRACTICE: Group similar alerts to reduce noise
+  group_by: ['alertname', 'service', 'severity']
+  
+  # SRE TIMING: Balance between quick notification and grouping efficiency
+  group_wait: 10s        # Wait for more alerts before sending group
+  group_interval: 10s    # How often to send updates for existing groups
+  repeat_interval: 12h   # How often to re-send unresolved alerts
+  
+  # SRE PRACTICE: Default receiver for all alerts
+  receiver: 'sre-team'
+  
+  # SRE ROUTING: Specific routing rules based on alert characteristics
+  routes:
+    # CRITICAL ALERTS: Immediate escalation
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 1s
+      group_interval: 1s
+      repeat_interval: 5m
+      
+    # SECURITY ALERTS: Specialized handling
+    - match_re:
+        alertname: '(SecurityIncidentsHigh|AuditTrailIncomplete)'
+      receiver: 'security-team'
+      group_wait: 1s
+      
+    # BUSINESS ALERTS: Compliance team notification
+    - match_re:
+        alertname: 'ComplianceScore.*'
+      receiver: 'compliance-team'
+      group_wait: 30s
+      
+    # WARNING ALERTS: Standard SRE workflow
+    - match:
+        severity: warning
+      receiver: 'sre-team'
+      
+    # INFRASTRUCTURE ALERTS: Ops team
+    - match_re:
+        alertname: '(HighCPUUsage|HighMemoryUsage|DiskSpaceLow)'
+      receiver: 'infrastructure-team'
+
+# ================================================================================
+# INHIBITION RULES
+# ================================================================================
+# SRE PRACTICE: Suppress redundant alerts during major incidents
+
+inhibit_rules:
+  # Inhibit warning alerts when critical alert is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['service', 'instance']
+    
+  # Inhibit individual service alerts when entire cluster is down
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match_re:
+      alertname: '(HighLatency|HighErrorRate)'
+    equal: ['service']
+
+# ================================================================================
+# RECEIVER CONFIGURATIONS
+# ================================================================================
+# SRE PRACTICE: Multiple notification channels for different alert types
+
+receivers:
+  # SRE TEAM: Primary on-call rotation
+  - name: 'sre-team'
+    email_configs:
+      - to: 'sre-oncall@company.com'
+        subject: '[SRE] {{ .GroupLabels.severity | title }} Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Service:** {{ .Labels.service }}
+          **Severity:** {{ .Labels.severity }}
+          **Runbook:** {{ .Annotations.runbook_url }}
+          **Dashboard:** http://grafana:3000/d/compliance-overview
+          {{ end }}
+    
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SRE/WEBHOOK'
+        channel: '#sre-alerts'
+        title: '{{ .GroupLabels.severity | title }} Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          Service: {{ .Labels.service }}
+          Runbook: {{ .Annotations.runbook_url }}
+          {{ end }}
+
+  # CRITICAL ALERTS: Immediate escalation with PagerDuty
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'sre-oncall@company.com'
+        subject: '[CRITICAL] IMMEDIATE ACTION REQUIRED: {{ .GroupLabels.alertname }}'
+        body: |
+          🚨 CRITICAL ALERT REQUIRES IMMEDIATE ATTENTION 🚨
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Service:** {{ .Labels.service }}
+          **Start Time:** {{ .StartsAt }}
+          **Runbook:** {{ .Annotations.runbook_url }}
+          
+          IMMEDIATE ACTIONS:
+          1. Acknowledge this alert within 5 minutes
+          2. Follow runbook procedures
+          3. Engage additional resources if needed
+          4. Update incident channel with status
+          {{ end }}
+    
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/CRITICAL/WEBHOOK'
+        channel: '#incident-response'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: |
+          <!here> Critical alert requires immediate attention
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          Runbook: {{ .Annotations.runbook_url }}
+          {{ end }}
+    
+    # SRE PRACTICE: PagerDuty integration for critical alerts
+    pagerduty_configs:
+      - routing_key: 'YOUR_PAGERDUTY_INTEGRATION_KEY'
+        description: '{{ .GroupLabels.alertname }}: {{ .GroupLabels.service }}'
+
+  # SECURITY TEAM: Specialized security incident handling
+  - name: 'security-team'
+    email_configs:
+      - to: 'security-team@company.com'
+        subject: '[SECURITY] Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          🔒 SECURITY ALERT DETECTED 🔒
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Description:** {{ .Annotations.description }}
+          **Service:** {{ .Labels.service }}
+          **Severity:** {{ .Labels.severity }}
+          
+          SECURITY ACTIONS REQUIRED:
+          1. Investigate potential security incident
+          2. Check audit logs for anomalies
+          3. Verify system integrity
+          4. Document findings in security log
+          {{ end }}
+
+  # COMPLIANCE TEAM: Business compliance notifications
+  - name: 'compliance-team'
+    email_configs:
+      - to: 'compliance-team@company.com'
+        subject: '[COMPLIANCE] Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          📋 COMPLIANCE ALERT 📋
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Current Score:** {{ .Labels.compliance_score }}%
+          **Threshold:** 80%
+          **Service:** {{ .Labels.service }}
+          
+          COMPLIANCE ACTIONS:
+          1. Review compliance dashboard
+          2. Identify root cause of score degradation
+          3. Implement corrective measures
+          4. Update compliance documentation
+          {{ end }}
+
+  # INFRASTRUCTURE TEAM: Hardware and system alerts
+  - name: 'infrastructure-team'
+    email_configs:
+      - to: 'infrastructure-team@company.com'
+        subject: '[INFRA] Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          🔧 INFRASTRUCTURE ALERT 🔧
+          
+          {{ range .Alerts }}
+          **Alert:** {{ .Annotations.summary }}
+          **Resource:** {{ .Labels.resource }}
+          **Current Value:** {{ .Labels.current_value }}
+          **Threshold:** {{ .Labels.threshold }}
+          
+          INFRASTRUCTURE ACTIONS:
+          1. Check resource utilization trends
+          2. Identify capacity planning needs
+          3. Consider scaling resources
+          4. Update capacity planning documentation
+          {{ end }}
+
+# ================================================================================
+# TEMPLATES
+# ================================================================================
+# SRE PRACTICE: Reusable alert message templates
+
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

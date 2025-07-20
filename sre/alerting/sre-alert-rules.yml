@@ -1,0 +1,294 @@
+# ================================================================================
+# SRE ALERT RULES
+# ================================================================================
+# SRE FUNDAMENTAL: Alerts should be actionable and tied to user impact
+# 
+# SRE ALERTING PRINCIPLES:
+# 1. Alert on symptoms, not causes
+# 2. Every alert should be actionable
+# 3. Alerts should indicate customer impact
+# 4. Use appropriate severity levels
+# 5. Include context for faster resolution
+# ================================================================================
+
+groups:
+  # ============================================================================
+  # CRITICAL ALERTS - IMMEDIATE ACTION REQUIRED
+  # ============================================================================
+  # SRE PRINCIPLE: Critical alerts indicate severe customer impact
+  
+  - name: sre_critical_alerts
+    rules:
+    
+      # SERVICE DOWN - Highest priority alert
+      # SRE CONCEPT: Service availability directly impacts users
+      - alert: ServiceDown
+        expr: up{job="compliance-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: sre
+          service: compliance-platform
+        annotations:
+          summary: "Service {{ $labels.instance }} is down"
+          description: |
+            The compliance service on {{ $labels.instance }} has been down for more than 1 minute.
+            This affects all users and requires immediate attention.
+            
+            IMMEDIATE ACTIONS:
+            1. Check service logs: docker logs compliance-monitor
+            2. Verify infrastructure: kubectl get pods
+            3. Check dependencies: prometheus, database connectivity
+            4. Escalate to on-call engineer if not resolved in 5 minutes
+          runbook_url: "https://runbooks.example.com/service-down"
+
+      # HIGH ERROR RATE - SLO violation
+      # SRE CONCEPT: Error rate above threshold indicates poor user experience  
+      - alert: HighErrorRate
+        expr: sre:http_error_rate_5m > 0.05  # 5% error rate
+        for: 2m
+        labels:
+          severity: critical
+          team: sre
+          service: compliance-platform
+        annotations:
+          summary: "High error rate detected: {{ $value | humanizePercentage }}"
+          description: |
+            Error rate has been above 5% for more than 2 minutes.
+            Current error rate: {{ $value | humanizePercentage }}
+            This violates our 99.9% availability SLO.
+            
+            IMMEDIATE ACTIONS:
+            1. Check application logs for error patterns
+            2. Verify recent deployments
+            3. Check infrastructure capacity
+            4. Consider rolling back recent changes
+          runbook_url: "https://runbooks.example.com/high-error-rate"
+
+      # SLO BURN RATE - Error budget exhaustion
+      # SRE CONCEPT: Track error budget consumption rate
+      - alert: SLOBurnRateHigh
+        expr: sre:error_budget_remaining_percent < 10
+        for: 5m
+        labels:
+          severity: critical
+          team: sre
+          service: compliance-platform
+        annotations:
+          summary: "SLO error budget critically low: {{ $value }}% remaining"
+          description: |
+            Error budget is below 10% with {{ $value }}% remaining.
+            At current burn rate, we risk violating our SLO.
+            
+            IMMEDIATE ACTIONS:
+            1. Investigate error rate trends
+            2. Consider reducing deployment frequency
+            3. Review recent changes
+            4. Implement emergency stabilization measures
+
+  # ============================================================================
+  # WARNING ALERTS - PROACTIVE INTERVENTION
+  # ============================================================================
+  # SRE PRINCIPLE: Warnings help prevent critical situations
+  
+  - name: sre_warning_alerts
+    rules:
+    
+      # HIGH LATENCY - Performance degradation
+      # SRE CONCEPT: Latency affects user experience
+      - alert: HighLatency
+        expr: sre:http_request_latency_p99 > 1.0  # 1 second
+        for: 5m
+        labels:
+          severity: warning
+          team: sre
+          service: compliance-platform
+        annotations:
+          summary: "High latency detected: {{ $value }}s (p99)"
+          description: |
+            99th percentile latency has been above 1 second for 5 minutes.
+            Current p99 latency: {{ $value }}s
+            
+            INVESTIGATION STEPS:
+            1. Check CPU and memory utilization
+            2. Review database performance
+            3. Analyze request patterns
+            4. Check for resource contention
+          runbook_url: "https://runbooks.example.com/high-latency"
+
+      # CPU SATURATION - Resource pressure
+      # SRE CONCEPT: Saturation can lead to performance issues
+      - alert: HighCPUUsage
+        expr: sre:cpu_utilization_5m > 80
+        for: 10m
+        labels:
+          severity: warning
+          team: sre
+          service: infrastructure
+        annotations:
+          summary: "High CPU usage: {{ $value }}%"
+          description: |
+            CPU utilization has been above 80% for 10 minutes.
+            Current usage: {{ $value }}%
+            
+            INVESTIGATION STEPS:
+            1. Identify top CPU consuming processes
+            2. Check for memory leaks or runaway processes
+            3. Consider scaling if load is legitimate
+            4. Review recent deployment impact
+
+      # MEMORY SATURATION - Memory pressure
+      - alert: HighMemoryUsage
+        expr: sre:memory_utilization_5m > 85
+        for: 10m
+        labels:
+          severity: warning
+          team: sre
+          service: infrastructure
+        annotations:
+          summary: "High memory usage: {{ $value }}%"
+          description: |
+            Memory utilization has been above 85% for 10 minutes.
+            Current usage: {{ $value }}%
+            
+            INVESTIGATION STEPS:
+            1. Check for memory leaks
+            2. Identify memory-intensive processes
+            3. Consider increasing memory limits
+            4. Review caching strategies
+
+      # DISK SPACE - Storage capacity
+      - alert: DiskSpaceLow
+        expr: sre:disk_utilization_5m > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: sre
+          service: infrastructure
+        annotations:
+          summary: "Disk space low: {{ $value }}%"
+          description: |
+            Disk utilization is above 85%: {{ $value }}%
+            
+            INVESTIGATION STEPS:
+            1. Identify large files/directories
+            2. Clean up old logs and temporary files
+            3. Check log rotation configuration
+            4. Consider expanding storage
+
+  # ============================================================================
+  # BUSINESS ALERTS - COMPLIANCE-SPECIFIC
+  # ============================================================================
+  # SRE PRACTICE: Monitor business-critical metrics
+  
+  - name: sre_compliance_alerts
+    rules:
+    
+      # COMPLIANCE SCORE - Business SLI
+      # SRE CONCEPT: Business metrics can be SLIs too
+      - alert: ComplianceScoreLow
+        expr: sre:compliance_score_hourly_avg < 80
+        for: 15m
+        labels:
+          severity: warning
+          team: compliance
+          service: compliance-platform
+        annotations:
+          summary: "Compliance score below threshold: {{ $value }}"
+          description: |
+            Hourly average compliance score has been below 80 for 15 minutes.
+            Current score: {{ $value }}
+            
+            INVESTIGATION STEPS:
+            1. Review recent audit findings
+            2. Check for policy violations
+            3. Verify compliance monitoring systems
+            4. Review access control changes
+
+      # AUDIT TRAIL INTEGRITY
+      - alert: AuditTrailIncomplete
+        expr: sre:audit_completeness_rate < 95
+        for: 5m
+        labels:
+          severity: critical
+          team: security
+          service: compliance-platform
+        annotations:
+          summary: "Audit trail completeness below threshold: {{ $value }}%"
+          description: |
+            Audit trail completeness is below 95%: {{ $value }}%
+            This may indicate a security issue or system failure.
+            
+            IMMEDIATE ACTIONS:
+            1. Check audit logging systems
+            2. Verify log storage integrity
+            3. Investigate potential security incidents
+            4. Notify security team immediately
+
+      # SECURITY INCIDENT RATE
+      - alert: SecurityIncidentsHigh  
+        expr: sre:security_incidents_per_hour > 10
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+          service: compliance-platform
+        annotations:
+          summary: "High security incident rate: {{ $value }} incidents/hour"
+          description: |
+            Security incident rate is abnormally high: {{ $value }} incidents/hour
+            This may indicate an active attack or system compromise.
+            
+            IMMEDIATE ACTIONS:
+            1. Review security event logs
+            2. Check for unauthorized access attempts
+            3. Verify system integrity
+            4. Escalate to security team immediately
+
+  # ============================================================================
+  # INFRASTRUCTURE ALERTS - DEPENDENCY MONITORING
+  # ============================================================================
+  # SRE PRACTICE: Monitor critical dependencies
+  
+  - name: sre_dependency_alerts
+    rules:
+    
+      # PROMETHEUS DOWN
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: sre
+          service: monitoring
+        annotations:
+          summary: "Prometheus monitoring is down"
+          description: |
+            Prometheus has been down for more than 1 minute.
+            This affects all monitoring and alerting capabilities.
+            
+            IMMEDIATE ACTIONS:
+            1. Check Prometheus container/process status
+            2. Verify configuration file syntax
+            3. Check disk space and permissions
+            4. Restart Prometheus service if needed
+
+      # DATABASE CONNECTION ISSUES
+      - alert: DatabaseConnectionsHigh
+        expr: database_connections_active / database_connections_max > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          team: sre
+          service: database
+        annotations:
+          summary: "Database connection pool at {{ $value | humanizePercentage }} capacity"
+          description: |
+            Database connection pool is at high utilization.
+            This may lead to connection failures.
+            
+            INVESTIGATION STEPS:
+            1. Check for connection leaks
+            2. Review long-running queries
+            3. Consider increasing connection pool size
+            4. Optimize application connection usage

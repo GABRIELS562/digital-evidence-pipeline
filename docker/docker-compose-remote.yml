@@ -1,0 +1,141 @@
+version: '3.8'
+
+services:
+  # Core monitoring stack remains the same
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus-remote.yml:/etc/prometheus/prometheus.yml:ro  # Use remote config
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - ./alert_rules_remote.yml:/etc/prometheus/alert_rules_remote.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Access host network for SSH tunnels
+    networks:
+      - compliance-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./admin_password:/etc/grafana/admin_password:ro
+      - ./provisioning:/etc/grafana/provisioning:ro
+      - ../dashboards:/etc/grafana/provisioning/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - compliance-net
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.2
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false  # Disable for simplicity
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - compliance-net
+
+  # Local compliance monitor (unchanged)
+  compliance-monitor:
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile.compliance-monitor
+    container_name: compliance-monitor
+    environment:
+      - PROMETHEUS_PORT=8000
+      - LOG_LEVEL=INFO
+    volumes:
+      - ../scripts:/app/scripts:ro
+    command: ["python3", "/app/scripts/compliance-metrics.py"]
+    ports:
+      - "8000:8000"
+    networks:
+      - compliance-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/liveness"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Mock LIMS Exporter (runs on EC2, simulates home server metrics)
+  lims-mock-exporter:
+    image: python:3.9-slim
+    container_name: lims-mock-exporter
+    volumes:
+      - ../scripts/mock-lims-exporter.py:/app/exporter.py:ro
+      - ../requirements.txt:/app/requirements.txt:ro
+    working_dir: /app
+    command: >
+      sh -c "pip install prometheus-client && python exporter.py"
+    ports:
+      - "9101:9101"
+    networks:
+      - compliance-net
+    restart: unless-stopped
+
+  # Mock Pipeline Exporter (for zero-downtime metrics)
+  pipeline-mock-exporter:
+    image: python:3.9-slim
+    container_name: pipeline-mock-exporter
+    volumes:
+      - ../scripts/mock-pipeline-exporter.py:/app/exporter.py:ro
+      - ../requirements.txt:/app/requirements.txt:ro
+    working_dir: /app
+    command: >
+      sh -c "pip install prometheus-client && python exporter.py"
+    ports:
+      - "9102:9102"
+    networks:
+      - compliance-net
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - compliance-net
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.rootfs=/host'
+    pid: host
+    volumes:
+      - '/:/host:ro,rslave'
+    networks:
+      - compliance-net
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  es_data:
+  alertmanager_data:
+
+networks:
+  compliance-net:
+    driver: bridge

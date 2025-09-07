@@ -1,0 +1,199 @@
+{
+  "dashboard": {
+    "title": "Multi-Site Compliance & Operations Dashboard",
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "Overall System Health",
+        "gridPos": {"h": 4, "w": 24, "x": 0, "y": 0},
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "avg(lims_compliance_score)",
+            "legendFormat": "LIMS FDA Compliance"
+          },
+          {
+            "expr": "avg(pipeline_deployment_success_rate)",
+            "legendFormat": "Deployment Success"
+          },
+          {
+            "expr": "avg(pipeline_sub50ms_rate)",
+            "legendFormat": "Sub-50ms Health Checks"
+          },
+          {
+            "expr": "avg(compliance_score)",
+            "legendFormat": "Platform Compliance"
+          }
+        ]
+      },
+      {
+        "title": "LIMS - FDA 21 CFR Part 11 Compliance",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "lims_compliance_score",
+            "legendFormat": "Overall Score"
+          },
+          {
+            "expr": "lims_data_integrity * 100",
+            "legendFormat": "Data Integrity"
+          },
+          {
+            "expr": "lims_electronic_signatures * 100",
+            "legendFormat": "E-Signatures Valid"
+          },
+          {
+            "expr": "lims_audit_trail * 100",
+            "legendFormat": "Audit Trail Complete"
+          }
+        ],
+        "yaxes": [{"format": "percent", "min": 0, "max": 100}]
+      },
+      {
+        "title": "Zero-Downtime Pipeline Health",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, rate(pipeline_health_latency_ms_bucket[5m]))",
+            "legendFormat": "P99 Latency"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(pipeline_health_latency_ms_bucket[5m]))",
+            "legendFormat": "P95 Latency"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(pipeline_health_latency_ms_bucket[5m]))",
+            "legendFormat": "P50 Latency"
+          }
+        ],
+        "yaxes": [{"format": "ms", "min": 0, "max": 100}],
+        "thresholds": [{"value": 50, "color": "red", "fill": true, "op": "gt"}]
+      },
+      {
+        "title": "LIMS Sample Processing",
+        "gridPos": {"h": 6, "w": 8, "x": 0, "y": 12},
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "lims_active_samples",
+            "legendFormat": "Active Samples"
+          },
+          {
+            "expr": "lims_queue_length",
+            "legendFormat": "Queue Length"
+          },
+          {
+            "expr": "rate(lims_sample_processing_seconds_sum[5m]) / rate(lims_sample_processing_seconds_count[5m])",
+            "legendFormat": "Avg Processing Time"
+          }
+        ]
+      },
+      {
+        "title": "Deployment Status",
+        "gridPos": {"h": 6, "w": 8, "x": 8, "y": 12},
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "pipeline_canary_progress",
+            "legendFormat": "Canary Progress %"
+          },
+          {
+            "expr": "pipeline_blue_green_active",
+            "legendFormat": "Active Env (0=Blue, 1=Green)"
+          },
+          {
+            "expr": "increase(pipeline_rollback_total[24h])",
+            "legendFormat": "Rollbacks (24h)"
+          }
+        ]
+      },
+      {
+        "title": "Security & Compliance Violations",
+        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 12},
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "increase(lims_access_violations[1h])",
+            "legendFormat": "LIMS Access Violations"
+          },
+          {
+            "expr": "increase(security_policy_violations[1h])",
+            "legendFormat": "Security Policy Violations"
+          },
+          {
+            "expr": "risk_assessment_score",
+            "legendFormat": "Risk Score (0-10)"
+          }
+        ]
+      },
+      {
+        "title": "Application Health Scores",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 18},
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "pipeline_finance_app_health",
+            "legendFormat": "Finance App"
+          },
+          {
+            "expr": "pipeline_pharma_app_health",
+            "legendFormat": "Pharma App"
+          },
+          {
+            "expr": "lims_validation_status * 100",
+            "legendFormat": "LIMS Validation"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 80, "color": "yellow"},
+                {"value": 95, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Infrastructure Metrics",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 18},
+        "type": "table",
+        "targets": [
+          {
+            "expr": "up{job=~\"lims-homeserver|trading-homeserver|pipeline-ec2\"}",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true
+              },
+              "renameByName": {
+                "job": "Service",
+                "instance": "Instance",
+                "Value": "Status",
+                "location": "Location",
+                "compliance_domain": "Compliance"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

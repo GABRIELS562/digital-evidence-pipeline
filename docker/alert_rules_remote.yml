@@ -1,0 +1,174 @@
+groups:
+  # FDA 21 CFR Part 11 Alerts for LIMS
+  - name: fda_compliance
+    rules:
+      - alert: LIMSComplianceScoreLow
+        expr: lims_compliance_score < 85
+        for: 5m
+        labels:
+          severity: warning
+          system: lims
+          regulation: "FDA 21 CFR Part 11"
+          location: home_server
+        annotations:
+          summary: "LIMS FDA compliance score below threshold"
+          description: "LIMS compliance score is {{ $value }}% (threshold: 85%)"
+      
+      - alert: LIMSElectronicSignatureInvalid
+        expr: lims_electronic_signatures == 0
+        for: 1m
+        labels:
+          severity: critical
+          system: lims
+          regulation: "FDA 21 CFR Part 11"
+        annotations:
+          summary: "FDA Critical: Electronic signatures invalid"
+          description: "Electronic signature validation failed - FDA violation"
+      
+      - alert: LIMSAuditTrailIncomplete
+        expr: lims_audit_trail == 0
+        for: 1m
+        labels:
+          severity: critical
+          system: lims
+          regulation: "FDA 21 CFR Part 11"
+        annotations:
+          summary: "FDA Critical: Audit trail incomplete"
+          description: "Audit trail is incomplete - FDA compliance violation"
+      
+      - alert: LIMSDataIntegrityLow
+        expr: lims_data_integrity < 90
+        for: 5m
+        labels:
+          severity: warning
+          system: lims
+        annotations:
+          summary: "LIMS data integrity below threshold"
+          description: "Data integrity score: {{ $value }}% (threshold: 90%)"
+
+  # Zero-Downtime Pipeline Alerts
+  - name: pipeline_performance
+    rules:
+      - alert: HealthCheckAbove50ms
+        expr: pipeline_sub50ms_rate < 95
+        for: 2m
+        labels:
+          severity: warning
+          system: pipeline
+          slo: "sub-50ms"
+          location: aws_ec2
+        annotations:
+          summary: "Health checks exceeding 50ms SLO"
+          description: "Only {{ $value }}% of health checks under 50ms (SLO: 95%)"
+      
+      - alert: HealthCheckCriticalLatency
+        expr: histogram_quantile(0.99, rate(pipeline_health_latency_ms_bucket[5m])) > 100
+        for: 1m
+        labels:
+          severity: critical
+          system: pipeline
+        annotations:
+          summary: "Critical: P99 latency above 100ms"
+          description: "P99 health check latency: {{ $value }}ms"
+      
+      - alert: DeploymentFailureRate
+        expr: pipeline_deployment_success_rate < 80
+        for: 5m
+        labels:
+          severity: warning
+          system: pipeline
+        annotations:
+          summary: "High deployment failure rate"
+          description: "Deployment success rate: {{ $value }}% (threshold: 80%)"
+      
+      - alert: RollbackDetected
+        expr: increase(pipeline_rollback_total[1h]) > 2
+        labels:
+          severity: warning
+          system: pipeline
+        annotations:
+          summary: "Multiple rollbacks detected"
+          description: "{{ $value }} rollbacks in the last hour"
+      
+      - alert: CanaryDeploymentStalled
+        expr: pipeline_canary_progress > 0 and pipeline_canary_progress < 100
+        for: 30m
+        labels:
+          severity: warning
+          system: pipeline
+          strategy: canary
+        annotations:
+          summary: "Canary deployment stalled"
+          description: "Canary at {{ $value }}% for over 30 minutes"
+
+  # Multi-Site Connectivity
+  - name: connectivity
+    rules:
+      - alert: LIMSExporterDown
+        expr: up{job="lims-homeserver"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          system: lims
+          location: home_server
+        annotations:
+          summary: "LIMS exporter unreachable"
+          description: "Cannot reach LIMS metrics exporter - check SSH tunnel"
+      
+      - alert: PipelineExporterDown
+        expr: up{job="pipeline-ec2"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          system: pipeline
+          location: aws_ec2
+        annotations:
+          summary: "Pipeline exporter down"
+          description: "Pipeline metrics exporter is not responding"
+      
+      - alert: TradingExporterDown
+        expr: up{job="trading-homeserver"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          system: trading
+          location: home_server
+        annotations:
+          summary: "Trading app exporter unreachable"
+          description: "Cannot reach trading app metrics - check SSH tunnel"
+
+  # Application Health
+  - name: app_health
+    rules:
+      - alert: FinanceAppUnhealthy
+        expr: pipeline_finance_app_health < 90
+        for: 5m
+        labels:
+          severity: warning
+          app: finance
+          compliance: SOX
+        annotations:
+          summary: "Finance app health degraded"
+          description: "Finance app health: {{ $value }}% (threshold: 90%)"
+      
+      - alert: PharmaAppUnhealthy
+        expr: pipeline_pharma_app_health < 90
+        for: 5m
+        labels:
+          severity: warning
+          app: pharma
+          compliance: GMP
+        annotations:
+          summary: "Pharma app health degraded"
+          description: "Pharma app health: {{ $value }}% (threshold: 90%)"
+      
+      - alert: LIMSValidationExpired
+        expr: lims_validation_status == 0
+        for: 1m
+        labels:
+          severity: critical
+          system: lims
+          regulation: "FDA 21 CFR Part 11"
+        annotations:
+          summary: "LIMS validation status invalid"
+          description: "LIMS system validation has expired or failed"

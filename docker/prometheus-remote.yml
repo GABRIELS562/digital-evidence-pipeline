@@ -1,0 +1,128 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+# Load rules
+rule_files:
+  - "alert_rules.yml"
+  - "alert_rules_remote.yml"
+
+scrape_configs:
+  # Local Prometheus
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Local Compliance Monitor
+  - job_name: "compliance-monitor"
+    static_configs:
+      - targets: ["compliance-monitor:8000"]
+    scrape_interval: 30s
+
+  # ============================================
+  # REMOTE MONITORING - HOME SERVER
+  # ============================================
+  
+  # LIMS System (via SSH tunnel from home Kubernetes)
+  - job_name: "lims-homeserver"
+    static_configs:
+      - targets: ["host.docker.internal:9101"]  # SSH tunnel port
+    metrics_path: /metrics
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "lims.homeserver.k8s"
+      - source_labels: []
+        target_label: environment
+        replacement: "production"
+      - source_labels: []
+        target_label: compliance_domain
+        replacement: "FDA_21CFR_Part11"
+      - source_labels: []
+        target_label: location
+        replacement: "home_server"
+
+  # Trading App (via SSH tunnel from home Docker)
+  - job_name: "trading-homeserver"
+    static_configs:
+      - targets: ["host.docker.internal:9103"]  # SSH tunnel port
+    metrics_path: /metrics
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "trading.homeserver.docker"
+      - source_labels: []
+        target_label: environment
+        replacement: "production"
+      - source_labels: []
+        target_label: compliance_domain
+        replacement: "SOX_PCIDSS"
+      - source_labels: []
+        target_label: location
+        replacement: "home_server"
+
+  # ============================================
+  # REMOTE MONITORING - EC2 INSTANCE
+  # ============================================
+  
+  # Zero-Downtime Pipeline (running on same EC2)
+  - job_name: "pipeline-ec2"
+    static_configs:
+      - targets: ["host.docker.internal:9102"]  # Local on EC2
+    metrics_path: /metrics
+    scrape_interval: 15s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "pipeline.ec2.local"
+      - source_labels: []
+        target_label: environment
+        replacement: "production"
+      - source_labels: []
+        target_label: pipeline_type
+        replacement: "zero_downtime"
+      - source_labels: []
+        target_label: location
+        replacement: "aws_ec2"
+
+  # Jenkins (if deployed on EC2)
+  - job_name: "jenkins-ec2"
+    static_configs:
+      - targets: ["jenkins:8080"]
+    metrics_path: /prometheus
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: []
+        target_label: ci_tool
+        replacement: "jenkins"
+      - source_labels: []
+        target_label: location
+        replacement: "aws_ec2"
+
+  # ArgoCD (if deployed on EC2)
+  - job_name: "argocd-ec2"
+    static_configs:
+      - targets: ["argocd-metrics:8082"]
+    metrics_path: /metrics
+    scrape_interval: 30s
+    relabel_configs:
+      - source_labels: []
+        target_label: cd_tool
+        replacement: "argocd"
+      - source_labels: []
+        target_label: location
+        replacement: "aws_ec2"
+
+  # Node Exporter (system metrics)
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+    scrape_interval: 15s

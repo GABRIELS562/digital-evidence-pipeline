@@ -1,0 +1,40 @@
+# Forensic Agent for Server 2 (Docker Containers)
+# This lightweight agent monitors Docker containers on Server 2
+version: '3.8'
+
+services:
+  forensic-agent:
+    image: forensic-collector:latest
+    container_name: forensic-agent-server2
+    hostname: server2-devops
+    environment:
+      - AGENT_MODE=docker
+      - SERVER_NAME=server2
+      - MONITOR_APPS=prometheus,grafana,loki,alertmanager,pharma,argocd
+      - EVIDENCE_SYNC_URL=http://server1.tailscale:8888/sync
+      - PROMETHEUS_URL=http://prometheus:9090
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - forensic_data:/var/forensics
+    networks:
+      - monitoring
+    ports:
+      - "8889:8888"  # Different port than main collector
+      - "9998:9999"  # Metrics port
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  forensic_data:
+    driver: local
+
+networks:
+  monitoring:
+    external: true

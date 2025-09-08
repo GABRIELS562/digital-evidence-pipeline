@@ -1,0 +1,63 @@
+# Forensic Evidence Collector - Your DevOps Differentiator
+FROM python:3.9-slim
+
+# Install system dependencies for forensic analysis
+RUN apt-get update && apt-get install -y \
+    curl \
+    netstat \
+    tcpdump \
+    lsof \
+    strace \
+    procps \
+    net-tools \
+    dnsutils \
+    sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create forensics user with necessary permissions
+RUN groupadd -r forensics && useradd -r -g forensics forensics && \
+    mkdir -p /var/forensics/evidence /var/forensics/reports && \
+    chown -R forensics:forensics /var/forensics
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir \
+    docker \
+    psutil \
+    prometheus-client \
+    kubernetes \
+    flask \
+    cryptography \
+    pyyaml
+
+# Copy forensic collector code
+COPY scripts/forensic_collector.py /app/
+COPY scripts/forensic_api.py /app/
+
+# Create startup script
+RUN echo '#!/bin/bash\n\
+python3 /app/forensic_api.py &\n\
+python3 /app/forensic_collector.py monitor\n\
+' > /app/start.sh && chmod +x /app/start.sh
+
+# Expose API and metrics ports
+EXPOSE 8888 9999
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8888/health || exit 1
+
+# Labels for identification
+LABEL \
+    org.opencontainers.image.title="Forensic Evidence Collector" \
+    org.opencontainers.image.description="System-wide forensic evidence collection for DevOps" \
+    org.opencontainers.image.version="1.0.0" \
+    org.opencontainers.image.authors="DevOps Portfolio" \
+    compliance="FDA-21CFR-SOX-PCIDSS-GMP"
+
+# Run as root for system access (required for forensics)
+USER root
+
+CMD ["/app/start.sh"]

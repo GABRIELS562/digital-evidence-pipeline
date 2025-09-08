@@ -1,0 +1,195 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forensics
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: forensic-collector
+  namespace: forensics
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: forensic-collector
+rules:
+- apiGroups: [""]
+  resources: ["pods", "nodes", "services", "endpoints", "configmaps", "secrets", "events"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: forensic-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: forensic-collector
+subjects:
+- kind: ServiceAccount
+  name: forensic-collector
+  namespace: forensics
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: forensic-collector
+  namespace: forensics
+  labels:
+    app: forensic-collector
+    component: security
+    compliance: "fda-sox-gmp"
+spec:
+  selector:
+    matchLabels:
+      app: forensic-collector
+  template:
+    metadata:
+      labels:
+        app: forensic-collector
+        component: security
+    spec:
+      serviceAccountName: forensic-collector
+      hostNetwork: true  # Access to host network for complete monitoring
+      hostPID: true      # Access to host processes
+      containers:
+      - name: collector
+        image: forensic-collector:latest
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true  # Required for complete system access
+          capabilities:
+            add:
+            - SYS_ADMIN
+            - SYS_PTRACE
+            - NET_ADMIN
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CLUSTER_NAME
+          value: "production-k3s"
+        - name: MONITOR_APPS
+          value: "lims,finance,pharma,jenkins,argocd"
+        - name: COMPLIANCE_MODES
+          value: "FDA_21CFR,SOX,PCI_DSS,GMP"
+        - name: PROMETHEUS_URL
+          value: "http://prometheus.monitoring:9090"
+        - name: ALERT_WEBHOOK
+          value: "http://alertmanager.monitoring:9093/api/v1/alerts"
+        volumeMounts:
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+        - name: containerd-sock
+          mountPath: /run/k3s/containerd/containerd.sock
+        - name: forensics-data
+          mountPath: /var/forensics
+        - name: host-logs
+          mountPath: /var/log
+          readOnly: true
+        - name: host-proc
+          mountPath: /host/proc
+          readOnly: true
+        - name: host-sys
+          mountPath: /host/sys
+          readOnly: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - python3
+            - -c
+            - "import os; os.path.exists('/var/forensics/chain_of_custody.db')"
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        readinessProbe:
+          exec:
+            command:
+            - python3
+            - -c
+            - "import sqlite3; sqlite3.connect('/var/forensics/chain_of_custody.db').execute('SELECT COUNT(*) FROM evidence')"
+          initialDelaySeconds: 45
+          periodSeconds: 30
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+          type: Socket
+      - name: containerd-sock
+        hostPath:
+          path: /run/k3s/containerd/containerd.sock
+          type: Socket
+      - name: forensics-data
+        hostPath:
+          path: /var/forensics
+          type: DirectoryOrCreate
+      - name: host-logs
+        hostPath:
+          path: /var/log
+      - name: host-proc
+        hostPath:
+          path: /proc
+      - name: host-sys
+        hostPath:
+          path: /sys
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: forensic-api
+  namespace: forensics
+spec:
+  selector:
+    app: forensic-collector
+  ports:
+  - port: 8888
+    targetPort: 8888
+    name: api
+  - port: 9999
+    targetPort: 9999
+    name: metrics
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forensic-webhook
+  namespace: forensics
+data:
+  webhook.yaml: |
+    # Webhook configuration for Alertmanager integration
+    receivers:
+    - name: forensic-collector
+      webhook_configs:
+      - url: http://forensic-api.forensics:8888/incident
+        send_resolved: false
+        http_config:
+          follow_redirects: true
+---
+# Prometheus ServiceMonitor for metrics collection
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: forensic-collector
+  namespace: forensics
+spec:
+  selector:
+    matchLabels:
+      app: forensic-collector
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics

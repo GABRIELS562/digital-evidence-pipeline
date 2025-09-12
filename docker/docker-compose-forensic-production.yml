@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  forensic-collector:
+    build:
+      context: .
+      dockerfile: Dockerfile.forensic
+    container_name: forensic-collector
+    environment:
+      - EVIDENCE_MODE=production
+      - STORAGE_BACKEND=filesystem  # Instead of elasticsearch
+      - COMPLIANCE_STANDARDS=FDA_21CFR11,SOX,GMP
+      - CHAIN_OF_CUSTODY=blockchain_style
+      - HASH_ALGORITHM=SHA256
+      - SERVER_NAME=EC2-Forensic-Node
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/host/logs:ro
+      - forensic_evidence:/evidence
+      - audit_logs:/audit
+    ports:
+      - "8888:8888"  # Forensic API
+      - "8889:8889"  # Chain of custody API
+      - "9999:9999"  # Metrics
+    networks:
+      - forensic-net
+    restart: unless-stopped
+    command: ["python", "/app/scripts/forensic_collector.py"]
+
+  compliance-monitor:
+    image: python:3.9-slim
+    container_name: compliance-monitor
+    environment:
+      - PROMETHEUS_PORT=8000
+      - LOG_LEVEL=INFO
+      - COMPLIANCE_MODE=production
+      - AUDIT_STORAGE=filesystem  # Not elasticsearch
+    volumes:
+      - ../scripts:/app/scripts:ro
+      - compliance_data:/data
+      - audit_logs:/audit
+    ports:
+      - "8000:8000"
+    command: |
+      sh -c "
+      pip install flask prometheus-client pyyaml pandas python-dateutil requests sqlalchemy &&
+      python /app/scripts/compliance-metrics.py"
+    networks:
+      - forensic-net
+    restart: unless-stopped
+    depends_on:
+      - forensic-collector
+
+  audit-db:
+    image: postgres:13-alpine
+    container_name: audit-database
+    environment:
+      - POSTGRES_DB=forensic_audit
+      - POSTGRES_USER=forensic
+      - POSTGRES_PASSWORD=evidence2024
+    volumes:
+      - audit_db:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - forensic-net
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    networks:
+      - forensic-net
+    restart: unless-stopped
+
+volumes:
+  forensic_evidence:
+    driver: local
+  compliance_data:
+    driver: local
+  audit_logs:
+    driver: local
+  audit_db:
+    driver: local
+
+networks:
+  forensic-net:
+    driver: bridge

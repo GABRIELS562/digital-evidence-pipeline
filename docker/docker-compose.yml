@@ -29,18 +29,25 @@ services:
     networks:
       - compliance-net
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.2
-    container_name: elasticsearch
+  # Replaced Elasticsearch with PostgreSQL for lighter footprint on EC2
+  audit-db:
+    image: postgres:13-alpine
+    container_name: audit-database
     environment:
-      - discovery.type=single-node
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - POSTGRES_DB=forensic_audit
+      - POSTGRES_USER=forensic
+      - POSTGRES_PASSWORD=evidence2024
     volumes:
-      - es_data:/usr/share/elasticsearch/data
+      - audit_db:/var/lib/postgresql/data
     ports:
-      - "9200:9200"
+      - "5432:5432"
     networks:
       - compliance-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forensic -d forensic_audit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   compliance-monitor:
     build:
@@ -59,7 +66,7 @@ services:
       - "8000:8000"
     depends_on:
       - prometheus
-      - elasticsearch
+      - audit-db
       - alertmanager
     networks:
       - compliance-net
@@ -104,7 +111,7 @@ services:
 volumes:
   prometheus_data:
   grafana_data:
-  es_data:
+  audit_db:
   alertmanager_data:
 
 networks:

@@ -33,8 +33,39 @@ Each stage maintains complete traceability, just like DNA evidence moving throug
 - **Languages**: Python, Go, JavaScript
 - **Infrastructure**: Kubernetes, Docker, Terraform
 - **Monitoring**: Prometheus, Grafana, Loki
+- **Storage Backend**: Configurable - Elasticsearch for production, SQLite for lightweight deployments
 - **CI/CD**: Jenkins, ArgoCD
 - **Cloud**: AWS, Hybrid on-premise
+
+## Deployment Options
+
+### 1. Full Deployment (Production Servers)
+**Requirements**: 4GB+ RAM  
+**Storage**: Elasticsearch for scalable audit logs  
+**Use Case**: Production environments, multi-node clusters
+
+```bash
+# Standard deployment with Elasticsearch
+cd docker
+docker-compose up -d
+```
+
+### 2. Lightweight Deployment (EC2 t2.micro)
+**Requirements**: 1GB RAM  
+**Storage**: SQLite + Filesystem (no Elasticsearch)  
+**Use Case**: Development, small EC2 instances, edge deployments
+
+```bash
+# For EC2 deployment
+cd docker
+docker-compose -f docker-compose-ec2.yml up -d
+```
+
+**Memory Optimization**:
+- Forensic Collector: 256MB
+- Compliance Monitor: 256MB
+- Audit Database: 128MB
+- Total: ~640MB (perfect for t2.micro)
 
 ### Deployment
 ```bash
@@ -46,6 +77,27 @@ cd terraform && terraform init && terraform apply
 
 # Access the Evidence Dashboard
 http://your-server:8888
+```
+
+### EC2 Quick Start
+
+```bash
+# Prepare EC2 instance directories
+sudo mkdir -p /opt/forensics/{prometheus,grafana,postgres,alertmanager}
+sudo chown -R $USER:$USER /opt/forensics
+
+# Clone and deploy
+git clone https://github.com/GABRIELS562/digital-evidence-pipeline.git
+cd digital-evidence-pipeline/docker
+
+# Use the EC2-optimized configuration
+docker-compose -f docker-compose-ec2.yml up -d
+
+# Verify deployment
+docker ps
+curl http://localhost:8000/metrics  # Compliance metrics
+curl http://localhost:9090  # Prometheus
+curl http://localhost:3000  # Grafana
 Business Value
 
 Reduce Audit Costs: Automated evidence collection eliminates manual audit preparation

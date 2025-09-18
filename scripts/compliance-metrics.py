@@ -1,7 +1,18 @@
 #!/usr/bin/env python3
 """
 compliance-metrics.py
+Modified to use lightweight storage (SQLite + Filesystem) instead of Elasticsearch
+Suitable for resource-constrained EC2 instances
+
 Collects and exposes custom compliance metrics for Prometheus, demonstrating how forensic investigation principles apply to automated compliance monitoring.
+
+STORAGE STRATEGY:
+- Direct file-based reading from system logs (/var/log/audit/, /var/log/auth.log, etc.)
+  Provides real-time compliance monitoring without intermediate storage layers
+- Prometheus metrics exposed via HTTP endpoint (port 8000) for time-series storage
+- No Elasticsearch dependency - metrics calculated directly from source log files
+- Lightweight approach suitable for edge deployments and containerized environments
+- Can optionally integrate with StorageBackend for audit event persistence
 """
 
 from prometheus_client import start_http_server, Gauge, Counter

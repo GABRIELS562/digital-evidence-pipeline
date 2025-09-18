@@ -1,0 +1,38 @@
+# Lightweight Forensic Collector Container
+# Optimized for minimal memory footprint on EC2 t2.micro
+
+FROM python:3.9-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install minimal system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies (only what's needed)
+RUN pip install --no-cache-dir \
+    docker==7.0.0 \
+    psutil==5.9.8
+
+# Scripts will be mounted as volumes at runtime
+# No COPY needed during build
+
+# Create necessary directories
+RUN mkdir -p /var/forensics/evidence /var/forensics/audit
+
+# Health check
+HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
+    CMD python3 /app/scripts/forensic_collector.py list || exit 1
+
+# Run as non-root user (with docker group access)
+RUN useradd -m -u 1000 forensic && \
+    chown -R forensic:forensic /app /var/forensics
+
+# Note: User will need to be added to docker group on host for container monitoring
+USER forensic
+
+# Default command - run in monitoring mode
+CMD ["python3", "-u", "/app/scripts/forensic_collector.py"]

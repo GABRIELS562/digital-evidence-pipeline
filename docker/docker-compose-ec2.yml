@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  forensic-collector:
+    image: python:3.9-slim
+    container_name: forensic-collector
+    mem_limit: 256m
+    environment:
+      - EVIDENCE_MODE=production
+      - STORAGE_BACKEND=sqlite
+      - SERVER_NAME=EC2-Forensic
+    volumes:
+      - ../scripts:/app/scripts:ro
+      - forensic_evidence:/evidence
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "8000:8000"
+    command: |
+      sh -c "
+      pip install flask prometheus-client pyyaml requests &&
+      python /app/scripts/forensic_collector.py"
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    mem_limit: 64m
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+
+volumes:
+  forensic_evidence:
+
+networks:
+  default:
+    name: forensic-net

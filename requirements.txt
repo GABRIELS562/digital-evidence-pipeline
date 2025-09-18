@@ -5,8 +5,12 @@ prometheus-client==0.19.0
 pandas==2.1.4
 numpy==1.24.4
 
-# Elasticsearch integration for audit logs
-elasticsearch==8.13.2
+# Note: Elasticsearch removed - using SQLite for audit logs (built-in Python module)
+# SQLite provides local, file-based storage with ACID compliance for forensic data
+
+# System monitoring and Docker integration for forensic collection
+psutil==5.9.8
+docker==7.0.0
 
 # Web framework for API endpoints
 flask==3.0.0

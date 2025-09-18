@@ -2,6 +2,9 @@
 """
 Forensic Evidence API Server
 Provides webhook endpoint for Alertmanager and web interface for evidence viewing
+
+Note: This API uses SQLite for storage (no Elasticsearch dependency)
+Runs on port 8000 by default for lightweight EC2 deployment
 """
 
 from flask import Flask, request, jsonify, render_template_string
@@ -316,5 +319,5 @@ if __name__ == '__main__':
     monitor_thread.start()
     
     # Start Flask app
-    print("[API] Starting Forensic Evidence API on port 8888...")
-    app.run(host='0.0.0.0', port=8888, debug=False)
+    print("[API] Starting Forensic Evidence API on port 8000...")
+    app.run(host='0.0.0.0', port=8000, debug=False)

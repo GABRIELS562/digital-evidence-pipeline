@@ -39,7 +39,7 @@ Current real-time scores from production monitoring:
 
 ### Grafana Compliance Dashboards
 
-![Regulatory Compliance Scores Dashboard 1](Regulatory%20Compliance%20Scores-1.png)
+![Regulatory Compliance Dashboard 1](./images/regulatory-compliance-dashboard-1.png)
 
 **Executive Compliance Overview Dashboard**
 - **Top Left**: Temperature violations baseline (0 - perfect environmental control)
@@ -47,7 +47,7 @@ Current real-time scores from production monitoring:
 - **Bottom Left**: Forensic Compliance Monitor score of 92 (overall system compliance)
 - **Bottom Right**: Financial Trading SOX Compliance trending upward (93.8 → 94.2 over time)
 
-![Regulatory Compliance Scores Dashboard 2](Regulatory%20Compliance%20Scores-2.png)
+![Regulatory Compliance Dashboard 2](./images/regulatory-compliance-dashboard-2.png)
 
 **Detailed Compliance Metrics View**
 - **LIMS Chain Integrity**: Perfect score of 1 (100% chain of custody maintained)
@@ -58,7 +58,7 @@ Current real-time scores from production monitoring:
 
 ### Prometheus Infrastructure Monitoring
 
-![Prometheus Targets Page 1](Prometheus-1.png)
+![Prometheus Targets Page 1](./images/prometheus-targets-1.png)
 
 **Multi-Tier Infrastructure Monitoring**
 - **forensic-ec2** target (100.101.99.93:9999) showing UP status - forensic collector active
@@ -66,7 +66,7 @@ Current real-time scores from production monitoring:
 - **server1-apps** multiple endpoints (ports 30007, 30002, 30003) with mixed status
 - **server1-node** and **server2-node** exporters both UP for system metrics
 
-![Prometheus Targets Page 2](Prometheus-2.png)
+![Prometheus Targets Page 2](./images/prometheus-targets-2.png)
 
 **Cross-Cloud Integration Proof**
 - Forensic collector at 100.101.99.93:9999 successfully scraped (17.869s ago, 2.63s duration)

@@ -37,42 +37,42 @@ Current real-time scores from production monitoring:
 
 ## 📸 Production System Screenshots
 
-### Prometheus Infrastructure Monitoring
-
-![Prometheus Targets 1](images/Prometheus-1.png)
-
-**Multi-Tier Infrastructure Monitoring**
-- Shows `forensic-ec2` target (100.101.99.93:9999) successfully integrated
-- Demonstrates cross-cloud monitoring (Server 1 → Server 2 → EC2)
-- Multiple application endpoints being monitored on Server 1
-- System health monitoring with node exporters on both servers
-
-![Prometheus Targets 2](images/Prometheus-2.png)
-
-**Cross-Cloud Integration**
-- Forensic collector successfully scraped by Prometheus
-- Proves hybrid architecture: on-premise servers + AWS EC2
-- Real-time metrics collection from distributed infrastructure
-- Complete observability across all tiers
-
 ### Grafana Compliance Dashboards
 
-![Regulatory Compliance Dashboard 1](images/Regulatory\ Compliance\ Scores-1.png)
+![Regulatory Compliance Scores Dashboard 1](Regulatory%20Compliance%20Scores-1.png)
 
-**Executive Compliance Overview**
-- **Top Left Panel**: Chain integrity monitoring (Score: 0 - baseline)
-- **Top Right Panel**: GMP Compliance at 94% (pharmaceutical temperature monitoring)
-- **Bottom Left Panel**: Forensic Compliance Monitor at 92% (overall system health)
-- **Bottom Right Panel**: Financial Trading SOX Compliance with time series trending
+**Executive Compliance Overview Dashboard**
+- **Top Left**: Temperature violations baseline (0 - perfect environmental control)
+- **Top Right**: GMP Compliance score of 94 (pharmaceutical temperature monitoring within limits)
+- **Bottom Left**: Forensic Compliance Monitor score of 92 (overall system compliance)
+- **Bottom Right**: Financial Trading SOX Compliance trending upward (93.8 → 94.2 over time)
 
-![Regulatory Compliance Dashboard 2](images/Regulatory\ Compliance\ Scores-2.png)
+![Regulatory Compliance Scores Dashboard 2](Regulatory%20Compliance%20Scores-2.png)
 
-**Detailed Compliance Metrics**
-- **LIMS Chain Integrity**: Perfect score of 1 (100% chain of custody)
-- **Temperature Violations**: 0 violations (perfect environmental control)
-- **Trading Anomalies Count**: 0 detected (SOX compliance maintained)
-- **GMP Compliance**: 94% score showing minor variance within acceptable limits
-- **Financial SOX Trending**: Real-time compliance monitoring over time
+**Detailed Compliance Metrics View**
+- **LIMS Chain Integrity**: Perfect score of 1 (100% chain of custody maintained)
+- **Temperature Violations**: 0 violations detected (critical for pharmaceutical storage)
+- **Trading Anomalies Count**: 0 anomalies (SOX financial compliance maintained)
+- **GMP Compliance (Pharma Temperature)**: Score of 94 (minor variance within regulatory limits)
+- **Financial Trading SOX Compliance**: Time series showing consistent compliance trending
+
+### Prometheus Infrastructure Monitoring
+
+![Prometheus Targets Page 1](Prometheus-1.png)
+
+**Multi-Tier Infrastructure Monitoring**
+- **forensic-ec2** target (100.101.99.93:9999) showing UP status - forensic collector active
+- **prometheus** self-monitoring on localhost:9090
+- **server1-apps** multiple endpoints (ports 30007, 30002, 30003) with mixed status
+- **server1-node** and **server2-node** exporters both UP for system metrics
+
+![Prometheus Targets Page 2](Prometheus-2.png)
+
+**Cross-Cloud Integration Proof**
+- Forensic collector at 100.101.99.93:9999 successfully scraped (17.869s ago, 2.63s duration)
+- Server 1 applications being monitored on ports 30007, 30002, 30003
+- Complete hybrid architecture: on-premise servers + AWS EC2 forensic system
+- Some server1-apps showing DOWN due to missing /metrics endpoints (expected)
 
 ---
 

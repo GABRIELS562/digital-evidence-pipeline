@@ -1,292 +1,267 @@
-# Digital Evidence Pipeline (DEP)
+# Forensic Evidence Collector
 
-**Forensic-grade DevOps compliance monitoring applying 15 years of DNA laboratory chain-of-custody principles to infrastructure.**
+Production compliance automation platform with tamper-evident audit trails and real-time evidence collection.
 
-## 🎯 The Forensic Difference
-
-**Traditional Monitoring**: "The system went down at 2 AM"  
-**Forensic Monitoring**: "Here's cryptographic proof of the complete system state, with tamper-evident chain of custody"
-
-This working system demonstrates how forensic science principles create audit trails for DevOps infrastructure.
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org/)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)](https://docker.com/)
+[![Prometheus](https://img.shields.io/badge/Metrics-Prometheus-E6522C?logo=prometheus&logoColor=white)](https://prometheus.io/)
+[![SQLite](https://img.shields.io/badge/Storage-SQLite-003B57?logo=sqlite&logoColor=white)](https://sqlite.org/)
 
 ---
 
-## 🚀 Current Deployment Status
+## Overview
 
-- **Platform**: AWS EC2 t2.micro (Mumbai Region)
-- **IP**: 100.101.99.93 (Tailscale network)
-- **Process**: `forensic_complete.py` (Active)
-- **Port**: 8888 (Forensic API endpoint)
-- **Integration**: Connected to 3-tier monitoring architecture
+Forensic-grade evidence collection system that captures system state, container forensics, and compliance metrics with cryptographic chain of custody. Designed for regulated industries requiring audit-ready documentation.
+
+**Live Dashboard:** [dashboards.jagdevops.co.za](https://dashboards.jagdevops.co.za)
 
 ---
 
-## 📊 Live Compliance Metrics
+## Architecture
 
-Current real-time scores from production monitoring:
+```mermaid
+flowchart TB
+    subgraph Sources["Data Sources"]
+        DOCKER["Docker Containers"]
+        SYSTEM["System Metrics"]
+        NETWORK["Network State"]
+        PROCESS["Process State"]
+    end
 
-| Standard | Score | Purpose |
-|----------|-------|---------|
-| **FDA 21 CFR Part 11** | 98.5% | Electronic records compliance (LIMS) |
-| **SOX Section 404** | 97.2% | Financial controls (Trading system) |
-| **GMP Guidelines** | 99.1% | Good Manufacturing Practices (Pharma) |
+    subgraph Collector["Forensic Collector"]
+        CAPTURE["Evidence Capture"]
+        HASH["SHA-256 Hash Chain"]
+        DB["Chain of Custody DB"]
+    end
 
-*Scores calculated from actual application logs and system metrics*
+    subgraph Output["Output"]
+        API["Flask API :9999"]
+        METRICS["Prometheus Metrics"]
+        REPORTS["Incident Reports"]
+        DASH["Web Dashboard"]
+    end
 
----
-
-## 📸 Production System Screenshots
-
-### Grafana Compliance Dashboards
-
-![Regulatory Compliance Dashboard 1](./images/regulatory-compliance-dashboard-1.png)
-
-**Executive Compliance Overview Dashboard**
-- **Top Left**: Temperature violations baseline (0 - perfect environmental control)
-- **Top Right**: GMP Compliance score of 94 (pharmaceutical temperature monitoring within limits)
-- **Bottom Left**: Forensic Compliance Monitor score of 92 (overall system compliance)
-- **Bottom Right**: Financial Trading SOX Compliance trending upward (93.8 → 94.2 over time)
-
-![Regulatory Compliance Dashboard 2](./images/regulatory-compliance-dashboard-2.png)
-
-**Detailed Compliance Metrics View**
-- **LIMS Chain Integrity**: Perfect score of 1 (100% chain of custody maintained)
-- **Temperature Violations**: 0 violations detected (critical for pharmaceutical storage)
-- **Trading Anomalies Count**: 0 anomalies (SOX financial compliance maintained)
-- **GMP Compliance (Pharma Temperature)**: Score of 94 (minor variance within regulatory limits)
-- **Financial Trading SOX Compliance**: Time series showing consistent compliance trending
-
-### Prometheus Infrastructure Monitoring
-
-![Prometheus Targets Page 1](./images/prometheus-targets-1.png)
-
-**Multi-Tier Infrastructure Monitoring**
-- **forensic-ec2** target (100.101.99.93:9999) showing UP status - forensic collector active
-- **prometheus** self-monitoring on localhost:9090
-- **server1-apps** multiple endpoints (ports 30007, 30002, 30003) with mixed status
-- **server1-node** and **server2-node** exporters both UP for system metrics
-
-![Prometheus Targets Page 2](./images/prometheus-targets-2.png)
-
-**Cross-Cloud Integration Proof**
-- Forensic collector at 100.101.99.93:9999 successfully scraped (17.869s ago, 2.63s duration)
-- Server 1 applications being monitored on ports 30007, 30002, 30003
-- Complete hybrid architecture: on-premise servers + AWS EC2 forensic system
-- Some server1-apps showing DOWN due to missing /metrics endpoints (expected)
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                   AWS EC2 Instance                       │
-│                  100.101.99.93:8888                      │
-│                                                          │
-│         forensic_complete.py (Evidence Collector)       │
-│                        ↓                                 │
-│              Compliance Calculation                      │
-│                        ↓                                 │
-│              Metrics Export (Prometheus format)         │
-└─────────────────────────────────────────────────────────┘
-                          ↓
-                 Server 2 (192.168.50.74)
-                 Prometheus + Grafana Stack
-                          ↓
-                 Server 1 (100.89.26.128)
-                 Production Applications
+    Sources --> CAPTURE
+    CAPTURE --> HASH
+    HASH --> DB
+    DB --> API & METRICS & REPORTS
+    API --> DASH
 ```
 
-**Verified by Screenshots:**
-- Prometheus successfully scraping EC2 forensic collector
-- Grafana dashboards displaying real compliance data
-- Multi-tier monitoring with cross-cloud integration
-- Complete infrastructure visibility
+---
+
+## Key Features
+
+### Tamper-Evident Hash Chain
+Each evidence block links to the previous via SHA-256 hash, creating an immutable audit trail.
+
+```python
+block = {
+    'evidence_id': 'uuid',
+    'timestamp': '2025-05-28T12:00:00',
+    'event_type': 'incident_capture',
+    'data': {...},
+    'previous_hash': 'abc123...',
+    'hash': 'def456...'  # SHA-256 of block content
+}
+```
+
+### Multi-Framework Compliance
+| Framework | Coverage |
+|-----------|----------|
+| **FDA 21 CFR Part 11** | Electronic signatures, audit trails, data integrity |
+| **SOX** | Financial controls, change management, segregation of duties |
+| **PCI-DSS** | Data encryption, access logging, vulnerability scanning |
+| **GMP** | Temperature control, batch tracking, equipment calibration |
+
+### Real-Time Evidence Collection
+- **Container Forensics**: Status, restarts, exit codes, mounts
+- **System State**: CPU, memory, disk, load average, network I/O
+- **Network Connections**: Active connections, ports, PIDs
+- **Process Analysis**: Top memory/CPU consumers
 
 ---
 
-## 🔬 Forensic Principles Applied
+## Technical Stack
 
-### Evidence Integrity
-- **SHA256 cryptographic hashing** of system states
-- **Tamper detection** through hash chain validation
-- **Immutable audit trail** generation with blockchain-style blocks
-
-### Chain of Custody
-- **Complete traceability** from infrastructure event to audit record
-- **Actor identification** with precise timestamps
-- **Cryptographic signatures** for non-repudiation
-
-### Compliance Validation
-- **Automated checking** against regulatory frameworks (FDA/SOX/GMP)
-- **Real-time scoring** with percentage calculations
-- **Alert generation** for policy violations and threshold breaches
+| Component | Technology |
+|-----------|------------|
+| **Language** | Python 3.11 |
+| **API** | Flask |
+| **Metrics** | Prometheus Client |
+| **Container** | Docker |
+| **Database** | SQLite (chain of custody) |
+| **System Monitoring** | psutil |
 
 ---
 
-## 📈 Dashboard Metrics Explained
+## API Endpoints
 
-### Color Coding System
-- **Green (0, 1)**: Perfect compliance - no violations detected
-- **Amber (92, 94)**: Good compliance with minor acceptable variations
-- **Red**: Critical violations requiring immediate attention (none currently)
-- **Time Series**: Trending analysis showing compliance direction over time
-
-### Compliance Calculations
-- **LIMS Chain Score "1"**: Perfect chain of custody for DNA samples
-- **Temperature Violations "0"**: No environmental excursions in pharmaceutical storage
-- **Trading Anomalies "0"**: No suspicious patterns in financial transactions
-- **GMP Score "94"**: Minor temperature variance within regulatory limits
-- **Forensic Monitor "92"**: Composite score across all regulatory frameworks
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/metrics` | GET | Prometheus metrics |
+| `/chain` | GET | Evidence chain status |
+| `/forensic/chain/<sample_id>` | GET | Sample chain of custody |
+| `/forensic/compliance/live` | GET | Real-time compliance scores |
+| `/forensic/evidence/<hash>` | GET | Retrieve evidence by hash |
+| `/forensic/audit/<date>` | GET | Audit trail for date |
 
 ---
 
-## 🛠️ Technical Implementation
+## Prometheus Metrics
 
-### Core Components
-- **Evidence Collector**: Python service monitoring infrastructure events
-- **Compliance Engine**: Algorithms for regulatory scoring (FDA/SOX/GMP)
-- **Audit Trail Generator**: Blockchain-style immutable records
-- **Metrics Exporter**: Prometheus-compatible endpoint at /metrics
+```promql
+# Compliance scores by framework
+compliance_score{standard="FDA"}
+compliance_score{standard="SOX"}
+compliance_score{standard="GMP"}
 
-### Technologies
-- **Language**: Python 3.9
-- **Deployment**: AWS EC2 (Tailscale networking)
-- **Monitoring**: Integrated with Prometheus/Grafana stack
-- **Hashing**: SHA256 cryptographic verification
-- **Storage**: Time-series data for compliance trending
+# Evidence chain metrics
+chain_blocks                    # Total evidence blocks
+evidence_verifications_total    # Verification attempts
+anomalies_detected_total        # Detected anomalies
+data_integrity_score            # Chain integrity percentage
+```
 
 ---
 
-## 📁 Repository Structure
+## Deployment
+
+### Docker
+
+```bash
+# Build
+docker build -t forensic-collector -f docker/Dockerfile.forensic .
+
+# Run
+docker run -d \
+  --name forensic-collector \
+  -p 9999:9999 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v forensic-data:/data \
+  forensic-collector
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOKI_URL` | `http://localhost:3100` | Loki log aggregator |
+| `PROMETHEUS_URL` | `http://localhost:9090` | Prometheus server |
+
+---
+
+## Usage
+
+```bash
+# Run as metrics server
+python forensic_collector.py server
+
+# Capture incident manually
+python forensic_collector.py capture COMPLIANCE_VIOLATION "FDA audit finding"
+
+# Verify evidence integrity
+python forensic_collector.py verify INC-20250528-120000
+
+# List recent incidents
+python forensic_collector.py list
+
+# Test connections
+python forensic_collector.py test-loki
+python forensic_collector.py test-prometheus
+```
+
+---
+
+## Evidence Verification
+
+```bash
+$ python forensic_collector.py verify INC-20250528-120000
+Verification: Evidence integrity verified - admissible for audit
+```
+
+If tampered:
+```bash
+Verification: WARNING: Evidence has been modified - NOT admissible!
+```
+
+---
+
+## Sample Output
+
+### Incident Report
+```
+================================================================================
+                        FORENSIC INCIDENT REPORT
+================================================================================
+
+INCIDENT IDENTIFICATION
+-----------------------
+Incident ID: INC-20250528-120000
+Timestamp: 2025-05-28T12:00:00
+Type: COMPLIANCE_VIOLATION
+Description: FDA audit finding
+
+SYSTEM STATE AT INCIDENT
+------------------------
+CPU Usage: 45%
+Memory Used: 72%
+Disk Used: 58%
+
+CONTAINER FORENSICS
+-------------------
+Total Containers: 12
+Running: 10
+Stopped: 1
+Failed: 1
+
+FORENSIC CHAIN OF CUSTODY
+-------------------------
+Evidence has been preserved with cryptographic integrity protection.
+This report is admissible for compliance audits and legal proceedings.
+================================================================================
+```
+
+---
+
+## Project Structure
 
 ```
 digital-evidence-pipeline/
-├── forensic_complete.py           # Main collector (RUNNING)
 ├── scripts/
-│   ├── forensic_collector.py      # Full implementation
-│   ├── forensic_api.py            # REST API endpoints
-│   ├── compliance-metrics.py      # Scoring algorithms
-│   └── storage_backend.py         # Evidence storage
+│   ├── forensic_collector.py   # Main collector with hash chain
+│   ├── forensic_api.py         # Flask API server
+│   └── storage_backend.py      # Persistent storage
 ├── docker/
-│   ├── docker-compose-ec2.yml     # Container deployment
-│   └── Dockerfile.forensic        # Image definition
-├── kubernetes/
-│   └── forensic-collector-daemonset.yaml
-├── images/                        # Production screenshots
-│   ├── Prometheus-1.png           # Infrastructure monitoring
-│   ├── Prometheus-2.png           # Cross-cloud integration
-│   ├── Regulatory Compliance Scores-1.png  # Executive dashboard
-│   └── Regulatory Compliance Scores-2.png  # Detailed metrics
+│   ├── Dockerfile.forensic     # Container build
+│   ├── docker-compose.yml      # Full stack deployment
+│   └── prometheus.yml          # Metrics config
+├── dashboards/
+│   ├── executive-compliance.json
+│   └── technical-metrics.json
 └── README.md
 ```
 
 ---
 
-## 📊 Available Metrics
+## From Forensics to DevOps
 
-Prometheus-compatible metrics exposed at `/metrics`:
+This project demonstrates the translation of forensic investigation skills to DevOps:
 
-```
-# Compliance scoring
-forensic_compliance_score{standard="FDA"} 98.5
-forensic_compliance_score{standard="SOX"} 97.2
-forensic_compliance_score{standard="GMP"} 99.1
-
-# Evidence collection
-forensic_evidence_collected_total 
-forensic_chain_blocks_total
-forensic_anomalies_detected_total
-
-# Chain integrity
-forensic_chain_integrity{type="lims"} 1
-forensic_chain_integrity{type="infrastructure"} 0
-```
+| Forensic Skill | DevOps Application |
+|----------------|-------------------|
+| Evidence Collection | Automated audit trails |
+| Chain of Custody | Cryptographic hash chains |
+| Investigation Reports | Compliance dashboards |
+| Quality Assurance | Automated validation |
 
 ---
 
-## 🎯 Business Value for Regulated Industries
+## Author
 
-### Healthcare & Life Sciences
-- **HIPAA Compliance**: Patient data handling audit trails
-- **FDA 21 CFR Part 11**: Electronic records validation (98.5% current score)
-- **Clinical Trial**: Complete documentation chain
+**Jaime Gabriels** — DevOps Engineer
 
-### Financial Services
-- **SOX Compliance**: Financial controls audit preparation (97.2% current score)
-- **Risk Management**: Real-time anomaly detection (0 current anomalies)
-- **Regulatory Reporting**: Automated evidence collection
-
-### Manufacturing & Pharma
-- **GMP Validation**: Good Manufacturing Practices monitoring (99.1% current score)
-- **Quality Control**: Environmental condition tracking (0 violations)
-- **Batch Records**: Complete production traceability
-
----
-
-## 🚀 Deployment
-
-### Current Production Environment
-```bash
-# System is actively running on EC2
-# View metrics endpoint (internal access)
-curl http://100.101.99.93:8888/metrics
-
-# View compliance scores
-curl http://100.101.99.93:8888/compliance
-```
-
-### Integration with Monitoring Stack
-- **Prometheus**: Automatically scrapes forensic metrics every 15 seconds
-- **Grafana**: Real-time dashboards showing compliance trends
-- **Tailscale**: Secure cross-cloud networking for metrics collection
-
----
-
-## 🔗 Portfolio Context
-
-Part of comprehensive DevOps portfolio demonstrating:
-
-1. **[LIMS System](https://lims.jagdevops.co.za)** - Production DNA tracking
-2. **[Zero-Downtime Pipeline](https://dashboard.jagdevops.co.za)** - GitOps deployment
-3. **Digital Evidence Pipeline** - This forensic monitoring system
-
----
-
-## 👨‍🔬 The Forensic Advantage
-
-*"In forensics, evidence contamination means justice fails. In DevOps, system contamination means business fails. This project demonstrates how forensic rigor prevents both."*
-
-### Why This Approach Matters
-
-**Unique Differentiator**: Combines 15 years forensic science experience with DevOps  
-**Compliance Ready**: Demonstrates understanding of regulatory requirements  
-**Audit Friendly**: Shows capability to build audit-ready systems  
-**Enterprise Focus**: Cryptographic proof and tamper detection
-
-### Real-World Impact
-- **Automated audit preparation** reducing manual effort by 60%
-- **Proactive compliance monitoring** preventing violations before they occur
-- **Legally-defensible documentation** suitable for regulatory inspection
-- **Cross-cloud architecture** proving scalable monitoring capabilities
-
----
-
-## 📝 Important Notes
-
-- Screenshots show actual production systems with real compliance data
-- All sensitive information sanitized for public documentation
-- System actively monitoring LIMS, Finance, and Pharma applications
-- Compliance scores updated in real-time based on system health
-
----
-
-## 📄 License
-
-MIT License - See LICENSE file for details
-
----
-
-**Author**: Jaime Gabriels  
-**Background**: 15 years DNA Forensics | DevOps Engineer | AWS SAA | CKA  
-**Concept**: "Where every deployment leaves evidence, and every evidence tells the compliance story"
+[![Portfolio](https://img.shields.io/badge/Portfolio-jagdevops.co.za-000000?style=for-the-badge)](https://jagdevops.co.za)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=for-the-badge&logo=linkedin)](https://linkedin.com/in/jaime-gabriels-643132386)
+[![GitHub](https://img.shields.io/badge/GitHub-Follow-181717?style=for-the-badge&logo=github)](https://github.com/GABRIELS562)
